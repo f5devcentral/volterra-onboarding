@@ -7,6 +7,8 @@ graph_url_template = "https://graph.microsoft.com/v1.0/groups/$group_id/transiti
 
 def getGroupMembers(authorization_token, group_id):
 
+    # To-do: handle result pagination
+
     graph_url = Template(graph_url_template)
     graph_response = requests.get(  # Use token to call downstream service
         graph_url.substitute(group_id=group_id),
