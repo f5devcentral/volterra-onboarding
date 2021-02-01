@@ -10,7 +10,8 @@ from msal_interactive_flow import retrieveAccessToken
 from pathlib import Path
 from helpers import readConfig, writeConfig
 
-logging.basicConfig(level=logging.WARNING)
+# logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.DEBUG)
 
 
 @click.group()
@@ -46,12 +47,20 @@ def add(name, tenant, createns):
     logging.debug(f'name:{name}')
     logging.debug(f'create namespace:{createns}')
 
+    # ensure we have an authorization token
+    if "authorization_token" not in globals():
+        logging.debug('No authorization token found')
+        raise ValueError('No configuration found')
+
     # determine if name is a user or group
     if "@" in name:
         logging.debug('adding a user')
         # Get user data from Azure AD
         try:
             user = getUser(authorization_token, name)
+            logging.debug(f'user:{user}')
+            click.echo(click.style(
+                f'Adding user:{user["surname"]}, {user["givenName"]}', fg='green'))
         except ValueError as e:
             click.echo(e, err=True)
     else:
@@ -60,6 +69,10 @@ def add(name, tenant, createns):
         try:
             id = getGroupId(authorization_token, name)
             users = getGroupMembers(authorization_token, id)
+            logging.debug(f'users:{users}')
+            for user in users:
+                click.echo(click.style(
+                    f'Adding user:{user["surname"]}, {user["givenName"]}', fg='green'))
         except ValueError as e:
             click.echo(e, err=True)
 
@@ -94,15 +107,22 @@ def remove(name, tenant, removens):
 def azure(clientid: str, tenantid: str):
     """Configure Azure access"""
     data = readConfig(config_file)
-    data['client_id'] = clientid
-    data['tenant_id'] = tenantid
+    if data is None:
+        data = {
+            'client_id': clientid,
+            'tenant_id': tenantid
+        }
+    else:
+        data['client_id'] = clientid
+        data['tenant_id'] = tenantid
+
     payload = writeConfig(config_file, data)
     pass
 
 
-@click.command()
-@click.option("--tenant", prompt="tenant", help="Volterra Tenant Name")
-@click.option("--apikey", prompt="API Key", help="Volterra API ID")
+@ click.command()
+@ click.option("--tenant", prompt="tenant", help="Volterra Tenant Name")
+@ click.option("--apikey", prompt="API Key", help="Volterra API ID")
 def volterra(tenant: str, apikey: str):
     """Configure Volterra access"""
     data = readConfig(config_file)
@@ -133,6 +153,9 @@ if __name__ == '__main__':
         if 'client_id' in config.keys() and 'tenant_id' in config.keys():
             authorization_token = retrieveAccessToken(
                 config['client_id'], config['tenant_id'])
-    else:
-        click.echo('No config file found', err=True)
-    cli()
+            # logging.debug(f'authorization_token: {authorization_token}')
+
+    try:
+        cli()
+    except ValueError as e:
+        click.echo(click.style(str(e), fg='red'))
