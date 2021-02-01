@@ -3,13 +3,14 @@ import click
 import sys
 import json
 import os
+import logging
 
 from ms_graph import getGroupId, getGroupMembers, getUser
 from msal_interactive_flow import retrieveAccessToken
 from pathlib import Path
 from helpers import readConfig, writeConfig
 
-# Defile CLI group
+logging.basicConfig(level=logging.WARNING)
 
 
 @click.group()
@@ -40,29 +41,27 @@ def add(name, tenant, createns):
 
     createns defaults to False.
     """
-    click.echo('adding user/group')
-    click.echo(f'tenant:{tenant}')
-    click.echo(f'name:{name}')
-    click.echo(f'create namespace:{createns}')
+    logging.debug('adding user/group')
+    logging.debug(f'tenant:{tenant}')
+    logging.debug(f'name:{name}')
+    logging.debug(f'create namespace:{createns}')
 
     # determine if name is a user or group
     if "@" in name:
-        click.echo('adding a user')
+        logging.debug('adding a user')
         # Get user data from Azure AD
         try:
             user = getUser(authorization_token, name)
-            print(user)
         except ValueError as e:
-            click.echo(e)
+            click.echo(e, err=True)
     else:
-        click.echo('adding a group')
+        logging.debug('adding a group')
         # Get group member data from Azure AD
         try:
             id = getGroupId(authorization_token, name)
             users = getGroupMembers(authorization_token, id)
-            print(users)
         except ValueError as e:
-            click.echo(e)
+            click.echo(e, err=True)
 
 
 # remove user/group
@@ -81,10 +80,10 @@ def remove(name, tenant, removens):
 
     removens defaults to True.
     """
-    click.echo('removing user/group')
-    click.echo(f'tenant:{tenant}')
-    click.echo(f'name:{name}')
-    click.echo(f'remove namespace:{removens}')
+    logging.debug('removing user/group')
+    logging.debug(f'tenant:{tenant}')
+    logging.debug(f'name:{name}')
+    logging.debug(f'remove namespace:{removens}')
     click.echo('FEATURE NOT IMPLEMENTED YET')
     pass
 
@@ -135,5 +134,5 @@ if __name__ == '__main__':
             authorization_token = retrieveAccessToken(
                 config['client_id'], config['tenant_id'])
     else:
-        click.echo('No config file found')
+        click.echo('No config file found', err=True)
     cli()

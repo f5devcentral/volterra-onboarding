@@ -14,7 +14,6 @@ def readConfig(config_file: str) -> str:
 
 def writeConfig(config_file: str, data: str) -> str:
     """Overwrite data to the supplied JSON config config_file"""
-    # print(f'data:{data}')
     os.makedirs(os.path.dirname(config_file), exist_ok=True)
     with open(config_file, 'w') as f:
         f.write(json.dumps(data))

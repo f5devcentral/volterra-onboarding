@@ -32,18 +32,19 @@ def retrieveAccessToken(client_id, tenant_id):
     if accounts:
         logging.info(
             "Account(s) exists in cache, probably with token too. Let's try.")
-        print("Account(s) already signed in:")
+        logging.debug("Account(s) already signed in:")
         for a in accounts:
-            print(a["username"])
+            logging.debug(a["username"])
         chosen = accounts[0]  # Assuming the end user chose this one to proceed
-        print("Proceed with account: %s" % chosen["username"])
+        logging.debug("Proceed with account: %s" % chosen["username"])
         # Now let's try to find a token in cache for this account
         result = app.acquire_token_silent(scope, account=chosen)
 
     if not result:
         logging.info(
             "No suitable token exists in cache. Let's get a new one from AAD.")
-        print("A local browser window will be open for you to sign in. CTRL+C to cancel.")
+        logging.info(
+            "A local browser window will be open for you to sign in. CTRL+C to cancel.")
         result = app.acquire_token_interactive(scope)
 
     if "access_token" in result:
@@ -52,8 +53,8 @@ def retrieveAccessToken(client_id, tenant_id):
         os.chmod(token_file, 0o600)
         return result['access_token']
     else:
-        print(result.get("error"))
-        print(result.get("error_description"))
+        logging.debug(result.get("error"))
+        logging.debug(result.get("error_description"))
         # You may need this when reporting a bug
-        print(result.get("correlation_id"))
+        logging.debug(result.get("correlation_id"))
         return None

@@ -1,5 +1,6 @@
 import requests
 import json
+import logging
 from string import Template
 
 get_group_by_name_url_template = "https://graph.microsoft.com/v1.0/groups?$$filter=displayName eq '$name'&$$select=id"
