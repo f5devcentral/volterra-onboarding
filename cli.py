@@ -7,6 +7,7 @@ import os
 from ms_graph import getGroupId, getGroupMembers, getUser
 from msal_interactive_flow import retrieveAccessToken
 from pathlib import Path
+from helpers import readConfig, writeConfig
 
 # Defile CLI group
 
@@ -93,24 +94,10 @@ def remove(name, tenant, removens):
 @click.option("--tenantid", prompt="Tenant ID", help="Azure Tenant ID")
 def azure(clientid: str, tenantid: str):
     """Configure Azure access"""
-    os.makedirs(os.path.dirname(config_file), exist_ok=True)
-    if os.path.exists(config_file):
-        with open(config_file, 'r+') as f:
-            data = json.load(f)
-            data['client_id'] = clientid
-            data['tenant_id'] = tenantid
-            f.seek(0)
-            f.write(json.dumps(data))
-            f.truncate()
-    else:
-        payload = {
-            'client_id': clientid,
-            'tenant_id': tenantid
-        }
-        with open(config_file, 'w') as f:
-            f.write(json.dumps(payload))
-            f.close
-        os.chmod(config_file, 0o600)
+    data = readConfig(config_file)
+    data['client_id'] = clientid
+    data['tenant_id'] = tenantid
+    payload = writeConfig(config_file, data)
     pass
 
 
@@ -119,22 +106,16 @@ def azure(clientid: str, tenantid: str):
 @click.option("--apikey", prompt="API Key", help="Volterra API ID")
 def volterra(tenant: str, apikey: str):
     """Configure Volterra access"""
-    os.makedirs(os.path.dirname(config_file), exist_ok=True)
-    if os.path.exists(config_file):
-        with open(config_file, 'r+') as f:
-            data = json.load(f)
-            data[tenant] = apikey
-            f.seek(0)
-            f.write(json.dumps(data))
-            f.truncate()
-    else:
-        payload = {
-            tenant: apikey
+    data = readConfig(config_file)
+    if data is None:
+        data = {
+            'volterra_tenants': {
+                tenant: apikey
+            }
         }
-        with open(config_file, 'w') as f:
-            f.write(json.dumps(payload))
-            f.close
-        os.chmod(config_file, 0o600)
+    else:
+        data['volterra_tenants'][tenant] = apikey
+    payload = writeConfig(config_file, data)
     pass
 
 
@@ -146,9 +127,13 @@ config.add_command(volterra)
 
 if __name__ == '__main__':
     config_file = str(Path.home()) + '/.volterra/config.json'
+    if os.path.exists(config_file):
 
-    # Get authorization token
-    config = json.load(open(config_file))
-    authorization_token = retrieveAccessToken(
-        config['client_id'], config['tenant_id'])
+        # Get authorization token
+        config = json.load(open(config_file))
+        if 'client_id' in config.keys() and 'tenant_id' in config.keys():
+            authorization_token = retrieveAccessToken(
+                config['client_id'], config['tenant_id'])
+    else:
+        click.echo('No config file found')
     cli()
