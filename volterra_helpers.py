@@ -24,7 +24,7 @@ def checkUser(email, tenantName, s):
         logging.error("Http Error: {0}".format(e))
         return None
 
-def createUserNamespace(email, tenantName, s):
+def createUserNS(email, tenantName, s):
     url = "https://{0}.console.ves.volterra.io/api/web/namespaces".format(tenantName)
 
     userNS = email.split('@')[0].replace('.', '-').lower()
