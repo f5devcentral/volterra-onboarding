@@ -3,7 +3,7 @@ import click
 import sys
 import json
 
-from ms_graph import getGroupId, getGroupMembers
+from ms_graph import getGroupId, getGroupMembers, getUser
 from msal_interactive_flow import retrieveAccessToken
 
 # Get authorization token
@@ -43,9 +43,12 @@ def add(name, tenant, createns):
     # determine if name is a user or group
     if "@" in name:
         click.echo('adding a user')
-        click.echo('FEATURE NOT IMPLEMENTED YET')
         # Get user data from Azure AD
-        pass
+        try:
+            user = getUser(authorization_token, name)
+            print(user)
+        except ValueError as e:
+            click.echo(e)
     else:
         click.echo('adding a group')
         # Get group member data from Azure AD
@@ -56,9 +59,8 @@ def add(name, tenant, createns):
         except ValueError as e:
             click.echo(e)
 
+
 # remove user/group
-
-
 @click.command()
 @click.argument('name')
 @click.option("--tenant", prompt="tenant", help="Volterra tenant.")
