@@ -1,14 +1,31 @@
 import logging
 import requests
 
-
 logging.getLogger("volterra-helper").setLevel(logging.INFO)
 
-def createUserNamespace(email, tenantName, token):
-    url = "https://{0}.console.ves.volterra.io/api/web/namespaces".format(tenantName)
+def createVoltSession(token):
     apiToken = "APIToken {0}".format(token)
     s = requests.Session()
     s.headers.update({'Authorization': apiToken})
+    return s
+
+def checkUser(email, tenantName, s):
+    ##Find a better way to do this
+    url = "https://{0}.console.ves.volterra.io/custom/namespaces/system/user_roles".format(tenantName)
+    try:
+        resp = s.get(url)
+        res = next((user for user in resp['items'] if user['email'] == email), None)
+        if res:
+            logging.info("User {0} already exists.")
+            return False
+        else:
+            return True
+    except requests.exceptions.RequestException as e:  
+        logging.error("Http Error: {0}".format(e))
+        return None
+
+def createUserNamespace(email, tenantName, s):
+    url = "https://{0}.console.ves.volterra.io/api/web/namespaces".format(tenantName)
 
     userNS = email.split('@')[0].replace('.', '-').lower()
     nsPayload = {
@@ -33,12 +50,9 @@ def createUserNamespace(email, tenantName, token):
         logging.error("Http Error: {0}".format(e))
         return None
 
-def createUserRoles(email, first_name, last_name, tenantName, token, createdNS=None):
+def createUserRoles(email, first_name, last_name, tenantName, s, createdNS=None):
     url = "https://{0}.console.ves.volterra.io/api/web/custom/namespaces/system/user_roles".format(tenantName)
-    apiToken = "APIToken {0}".format(token)
-    s = requests.Session()
-    s.headers.update({'Authorization': apiToken})
-
+ 
     userPayload = {
         'email': email, 
         'first_name': first_name, 
