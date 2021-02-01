@@ -1,7 +1,0 @@
-{
-    "authority": "https://login.microsoftonline.com/<tentant_id>",
-    "client_id": "<client_id>",
-    "scope": ["User.ReadBasic.All"],
-    "endpoint": "https://graph.microsoft.com/v1.0/users",
-    "test_group": "https://graph.microsoft.com/v1.0/groups/<group_id>/transitiveMembers"
-}

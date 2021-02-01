@@ -4,12 +4,16 @@ import json
 import logging
 import msal
 import os
+from pathlib import Path
 
 logging.getLogger("msal").setLevel(logging.INFO)
 
 
-def retrieveAccessToken(client_id, authority, scope):
-    token_file = "token_cache.json"
+def retrieveAccessToken(client_id, tenant_id):
+    """Authenticate against Azure AD"""
+    token_file = str(Path.home()) + '/.volterra/token_cache.json'
+    authority = f'https://login.microsoftonline.com/{tenant_id}'
+    scope = ["User.ReadBasic.All"]
     tokenCache = msal.SerializableTokenCache()
     if os.path.exists(token_file):
         tokenCache.deserialize(
