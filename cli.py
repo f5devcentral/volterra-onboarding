@@ -6,11 +6,10 @@ import json
 import os
 import logging
 
-from ms_graph import getGroupId, getGroupMembers, getUser
 from msal_interactive_flow import retrieveAccessToken
 from pathlib import Path
-from helpers import readConfig, writeConfig
 from volterra_helpers import cliAdd, cliRemove
+from helpers import processRequest, readConfig, writeConfig
 
 logging.basicConfig(level=logging.WARNING)
 # logging.basicConfig(level=logging.DEBUG)
@@ -47,61 +46,25 @@ def add(name, tenant, createns, overwrite):
 
     overwrite defaults to false.
     """
-    logging.debug('adding user/group')
-    logging.debug(f'tenant:{tenant}')
-    logging.debug(f'name:{name}')
-    logging.debug(f'create namespace:{createns}')
-    logging.debug(f'overwrite:{overwrite}')
-
-    # ensure we have an authorization token
-    if "authorization_token" not in globals():
-        logging.debug('No authorization token found')
-        raise ValueError('No configuration found')
-
-    # ensure we have an API token for the Volterra tenant
     try:
         token = volterraTenants[tenant]
     except KeyError as e:
-        click.echo('No API token found for tenant', err=True) #err=True seems to do nothing
+        # err=True seems to do nothing
+        click.echo('No API token found for tenant', err=True)
 
-    # determine if name is a user or group
-    if "@" in name:
-        logging.debug('adding a user')
-        # Get user data from Azure AD
-        try:
-            user = getUser(authorization_token, name)
-            logging.debug(f'user:{user}')
+    response = processRequest(
+        'add', authorization_token, name, createns, overwrite, tenant, token)
+    logging.debug(f'response:{response}')
+
+    # display results
+    for user in response:
+        if user['result'] is True:
             click.echo(click.style(
-                f'Adding user:{user["surname"]}, {user["givenName"]}', fg='green'))
-        except ValueError as e:
-            click.echo(e, err=True)
-
-        # Call Volterra API for proposed changes
-        try:
-            result = cliAdd(token, tenant, user['userPrincipalName'], user['givenName'], user['surname'], createns, overwrite)
-            logging.debug(f'result:{result}')
-        except Exception as e:
-            click.echo(e, err=True)
-
-    else:
-        logging.debug('adding a group')
-        # Get group member data from Azure AD
-        try:
-            id = getGroupId(authorization_token, name)
-            users = getGroupMembers(authorization_token, id)
-            logging.debug(f'users:{users}')
-            for user in users:
-                click.echo(click.style(
-                    f'Adding user:{user["surname"]}, {user["givenName"]}', fg='green'))
-                # Call Volterra API for each user. 
-                # TBD: refactor this to share a session 
-                try:
-                    result = cliAdd(token, tenant, user['userPrincipalName'], user['givenName'], user['surname'], createns, overwrite)
-                    logging.debug(f'result:{result}')
-                except Exception as e:
-                    click.echo(e, err=True)
-        except ValueError as e:
-            click.echo(e, err=True)
+                f'user {user["surname"]}, {user["givenName"]} added', fg='green'))
+        else:
+            click.echo(click.style(
+                f'user {user["surname"]}, {user["givenName"]} not added', fg='red'))
+    pass
 
 
 # remove user/group
@@ -120,11 +83,18 @@ def remove(name, tenant, removens):
 
     removens defaults to True.
     """
-    logging.debug('removing user/group')
-    logging.debug(f'tenant:{tenant}')
-    logging.debug(f'name:{name}')
-    logging.debug(f'remove namespace:{removens}')
-    click.echo('FEATURE NOT IMPLEMENTED YET')
+    response = processRequest(
+        'remove', authorization_token, name, removens, tenant)
+    logging.debug(f'response:{response}')
+
+    # display results
+    for user in response:
+        if user['result'] is True:
+            click.echo(click.style(
+                f'user {user["surname"]}, {user["givenName"]} removed', fg='green'))
+        else:
+            click.echo(click.style(
+                f'user {user["surname"]}, {user["givenName"]} not removed', fg='red'))
     pass
 
 
@@ -187,7 +157,6 @@ if __name__ == '__main__':
 
         # load possible tenant tokens
         volterraTenants = config['volterra_tenants']
-    
 
     try:
         cli()
