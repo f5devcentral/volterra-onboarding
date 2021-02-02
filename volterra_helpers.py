@@ -20,7 +20,8 @@ def createVoltSession(token, tenantName):
     s = requests.Session()
     s.headers.update({'Authorization': apiToken})
     urlBase = "https://{0}.console.ves.volterra.io".format(tenantName)
-    session = {'session': s, 'urlBase': urlBase }
+    userCache = {'expiry': "Not Implemented", 'tenantUsers': []}
+    session = {'session': s, 'urlBase': urlBase, 'userCache': userCache}
     return session
 
 def checkNS(email, s):
@@ -38,22 +39,19 @@ def checkNS(email, s):
 
 def checkUser(email, s):
     #TBD: Find a better way to do this, this is too expensive
-    #TBD: Fix this dictionary comprehension
     url = s['urlBase'] + "/api/web/custom/namespaces/system/user_roles"
     try:
         resp = s['session'].get(url)
         resp.raise_for_status()
-        resp_dict = resp.json()
-        #res = next((user for user in resp_dict['items'] if user['email'] == email), None)
-        res = [e for e in resp_dict['items'] if e['email'] == email]
-        if res:
-            logging.info("User {0} already exists.")
-            return sObj('checkUser', 'present', res)
-        else:
-            return sObj('checkUser', 'absent', None)
+        users = json.loads(resp.text)['items']
     except requests.exceptions.RequestException as e:  
-        logging.error("Http Error: {0}".format(e))
-        return None
+        return sObj('checkUser', 'HTTPerror', e)
+    except json.decoder.JSONDecodeError as e:
+        return sObj('checkUser', 'JSONerror', e)
+    user = next((user for user in users if user['email'].lower() == email.lower()), None)
+    if user:
+        return sObj('checkUser', 'present', user)
+    return sObj('checkUser', 'absent', email)
 
 def createUserNS(email, s):
     url = s['urlBase'] + "/api/web/namespaces"
