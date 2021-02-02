@@ -3,6 +3,7 @@ import json
 import logging
 
 from ms_graph import getGroupId, getGroupMembers, getUser
+from volterra_helpers import cliAdd, cliRemove
 
 
 def readConfig(config_file: str) -> str:
@@ -24,15 +25,15 @@ def writeConfig(config_file: str, data: str) -> str:
     os.chmod(config_file, 0o600)
 
 
-def processUser(action: str, namespace_action: bool, overwrite: bool, tenant: str, token: str, user: dict) -> bool:
+def processUser(action: str, namespace_action: bool, overwrite: bool, tenant: str, token: str, user: dict) -> dict:
     """Add or remove a user from Volterra Console"""
     if action == 'add':
         result = cliAdd(token, tenant, user['userPrincipalName'],
                         user['givenName'], user['surname'], namespace_action, overwrite)
         logging.debug(f'result:{result}')
-        return True
+        return result
     else:
-        return False
+        return {'status': 'failure', 'reason': 'feature not implemented yet'}
 
 
 def processRequest(action: str, authorization_token: str, name: str, namespace_action: bool, overwrite: bool, tenant: str, token: str) -> bool:
@@ -52,6 +53,7 @@ def processRequest(action: str, authorization_token: str, name: str, namespace_a
                              overwrite, tenant, token, user)
         logging.debug(f'processUser:{result}')
         # build response payload
+        logging.debug(f'user:{user}')
         user['result'] = result
         payload.append(user)
     else:

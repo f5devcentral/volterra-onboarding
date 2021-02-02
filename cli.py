@@ -58,12 +58,12 @@ def add(name, tenant, createns, overwrite):
 
     # display results
     for user in response:
-        if user['result'] is True:
+        if user['result']['status'] == 'success':
             click.echo(click.style(
                 f'user {user["surname"]}, {user["givenName"]} added', fg='green'))
         else:
             click.echo(click.style(
-                f'user {user["surname"]}, {user["givenName"]} not added', fg='red'))
+                f'user {user["surname"]}, {user["givenName"]} not added: {user["result"]["reason"]}', fg='red'))
     pass
 
 
@@ -89,12 +89,12 @@ def remove(name, tenant, removens):
 
     # display results
     for user in response:
-        if user['result'] is True:
+        if user['result']['status'] == 'success':
             click.echo(click.style(
-                f'user {user["surname"]}, {user["givenName"]} removed', fg='green'))
+                f'user {user["surname"]}, {user["givenName"]} added', fg='green'))
         else:
             click.echo(click.style(
-                f'user {user["surname"]}, {user["givenName"]} not removed', fg='red'))
+                f'user {user["surname"]}, {user["givenName"]} not added: {user["result"]["reason"]}', fg='red'))
     pass
 
 
