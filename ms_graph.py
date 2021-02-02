@@ -38,8 +38,6 @@ def getGroupMembers(authorization_token: str, group_id: str) -> [dict]:
                         " ", 2)
                 else:
                     raise ValueError("No givenName or surname found for user")
-            else:
-                raise ValueError("No givenName or surname found for user")
             users.append({
                 "userPrincipalName": user['userPrincipalName'],
                 "givenName": user['givenName'],
@@ -55,13 +53,16 @@ def getUser(authorization_token: str, email: str) -> dict:
     if resp:
         # make sure givenName and surname exist
         user = resp[0]
-        if not user['givenName'] and not user['surname']:
+        logging.debug(user)
+        logging.debug(
+            f'if not {user["givenName"]} and not {user["surname"]}')
+        if user['givenName'] is None and user['surname'] is None:
             if user['displayName']:
                 user['givenName'], user['surname'] = user['displayName'].split(
                     " ", 2)
-            return user
-        else:
-            raise ValueError("No givenName or surname found for user")
+            else:
+                raise ValueError("No givenName or surname found for user")
+        return user
     else:
         raise ValueError(f'Azure AD user {email} not found')
 
