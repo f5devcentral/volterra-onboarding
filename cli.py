@@ -12,9 +12,6 @@ from pathlib import Path
 from helpers import processRequest, readConfig, writeConfig
 from volterra_helpers import cliAdd, cliRemove
 
-logging.basicConfig(level=logging.WARNING)
-# logging.basicConfig(level=logging.DEBUG)
-
 
 @click.group()
 def cli():
@@ -131,6 +128,32 @@ def volterra(tenant: str, apikey: str):
     pass
 
 
+@ click.command()
+@ click.option("--level", prompt="log level", help="CLI log level")
+def logLevel(level: str):
+    """Configure CLI log level.
+
+    Supported levels:
+
+    - CRITICAL
+
+    - ERROR
+
+    - WARNING
+
+    - INFO
+
+    - DEBUG
+    """
+    data = readConfig(config_file)
+    if data is None:
+        data = {'log_level': level}
+    else:
+        data['log_level'] = level
+    payload = writeConfig(config_file, data)
+    pass
+
+
 def cliDisplayRequestResults(action, users):
     """Display the process requests results in the CLI"""
     # display results
@@ -158,20 +181,28 @@ cli.add_command(remove)
 cli.add_command(config)
 config.add_command(azure)
 config.add_command(volterra)
+config.add_command(logLevel)
 
 if __name__ == '__main__':
+    # load config data
     config_file = str(Path.home()) + '/.volterra/config.json'
+    config = {}
     if os.path.exists(config_file):
-
-        # Get authorization token
         config = json.load(open(config_file))
-        if 'client_id' in config.keys() and 'tenant_id' in config.keys():
-            authorization_token = retrieveAccessToken(
-                config['client_id'], config['tenant_id'])
-            # logging.debug(f'authorization_token: {authorization_token}')
 
-        # load possible tenant tokens
-        volterraTenants = config['volterra_tenants']
+    # Set log level
+    if 'log_level' in config.keys():
+        logging.basicConfig(level=config['log_level'])
+    else:
+        logging.basicConfig(level=logging.WARNING)
+    # Get authorization token
+
+    if 'client_id' in config.keys() and 'tenant_id' in config.keys():
+        authorization_token = retrieveAccessToken(
+            config['client_id'], config['tenant_id'])
+
+    # load possible tenant tokens
+    volterraTenants = config['volterra_tenants']
 
     try:
         cli()
