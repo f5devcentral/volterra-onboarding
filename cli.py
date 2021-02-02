@@ -11,8 +11,8 @@ from pathlib import Path
 from volterra_helpers import cliAdd, cliRemove
 from helpers import processRequest, readConfig, writeConfig
 
-logging.basicConfig(level=logging.WARNING)
-# logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.DEBUG)
 
 
 @click.group()
@@ -55,7 +55,7 @@ def add(name, tenant, createns, overwrite):
     response = processRequest(
         'add', authorization_token, name, createns, overwrite, tenant, token)
     logging.debug(f'response:{response}')
-    cliDisplayRequestResults(response)
+    cliDisplayRequestResults('add', response)
 
     pass
 
@@ -76,11 +76,17 @@ def remove(name, tenant, removens):
 
     removens defaults to True.
     """
+    try:
+        token = volterraTenants[tenant]
+    except KeyError as e:
+        # err=True seems to do nothing
+        click.echo('No API token found for tenant', err=True)
+
     response = processRequest(
         'remove', authorization_token, name, removens, False, tenant, token)
     logging.debug(f'response:{response}')
 
-    cliDisplayRequestResults(response)
+    cliDisplayRequestResults('remove', response)
     pass
 
 
@@ -124,16 +130,24 @@ def volterra(tenant: str, apikey: str):
     pass
 
 
-def cliDisplayRequestResults(users):
+def cliDisplayRequestResults(action, users):
     """Display the process requests results in the CLI"""
     # display results
+    msg = ''
+    err_msg = ''
+    if action == 'add':
+        msg = 'added'
+        err_msg = 'not added'
+    else:
+        msg = 'removed'
+        err_msg = 'not removed'
     for user in users:
         if user['result']['status'] == 'success':
             click.echo(click.style(
-                f'user {user["surname"]}, {user["givenName"]} added', fg='green'))
+                f'user {user["surname"]}, {user["givenName"]} {msg}', fg='green'))
         else:
             click.echo(click.style(
-                f'user {user["surname"]}, {user["givenName"]} not added: {user["result"]["reason"]}', fg='red'))
+                f'user {user["surname"]}, {user["givenName"]} {err_msg}: {user["result"]["reason"]}', fg='red'))
 
     pass
 
