@@ -77,7 +77,7 @@ def remove(name, tenant, removens):
     removens defaults to True.
     """
     response = processRequest(
-        'remove', authorization_token, name, removens, tenant)
+        'remove', authorization_token, name, removens, False, tenant, token)
     logging.debug(f'response:{response}')
 
     cliDisplayRequestResults(response)

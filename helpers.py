@@ -33,7 +33,9 @@ def processUser(action: str, namespace_action: bool, overwrite: bool, tenant: st
         logging.debug(f'result:{result}')
         return result
     else:
-        return {'status': 'failure', 'reason': 'feature not implemented yet'}
+        result = cliRemove(token, tenant, user['userPrincipalName'])
+        logging.debug(f'result:{result}')
+        return result
 
 
 def processRequest(action: str, authorization_token: str, name: str, namespace_action: bool, overwrite: bool, tenant: str, token: str) -> bool:
