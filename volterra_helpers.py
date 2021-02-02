@@ -47,17 +47,26 @@ def createVoltSession(token, tenantName):
     session = {'session': s, 'urlBase': urlBase, 'log': logs}
     return session
 
-def checkNS(email, s):
-    userNS = email.split('@')[0].replace('.', '-').lower()
+def findUserNS(email):
+    userNS = ""
+    if "#EXT#@" in email:
+        userNS = email.split(
+            '#EXT#@')[0].replace('.', '-').replace('_', '-').lower()
+    else:
+        userNS = email.split('@')[0].replace('.', '-').lower()
+    return userNS
+    
+def checkUserNS(email, s):
+    userNS = findUserNS(email)
     url = s['urlBase'] + "/api/web/namespaces/{0}".format(userNS)
     try:
         resp = s['session'].get(url)
         if 200 <= resp.status_code <= 299:
-            return updateSO(s, 'checkNS', 'present', 'NS is present')
+            return updateSO(s, 'checkUserNS', 'present', 'NS is present')
         else:
-            return updateSO(s, 'checkNS', 'absent', 'NS is absent')
+            return updateSO(s, 'checkUserNS', 'absent', 'NS is absent')
     except requests.exceptions.RequestException as e:  
-        return updateSO(s, 'checkNS', 'error', e)
+        return updateSO(s, 'checkUserNS', 'error', e)
 
 def checkUser(email, s, c):
     if c['expiry'] < datetime.datetime.now().timestamp():
@@ -68,8 +77,8 @@ def checkUser(email, s, c):
     return updateSO(s, 'checkUser', 'absent', 'User {0} is absent'.format(email))
     
 def createUserNS(email, s):
+    userNS = findUserNS(email)
     url = s['urlBase'] + "/api/web/namespaces"
-    userNS = email.split('@')[0].replace('.', '-').lower()
     nsPayload = {
         'metadata': 
             {
@@ -85,12 +94,12 @@ def createUserNS(email, s):
     try:
         resp = s['session'].post(url, json=nsPayload)
         resp.raise_for_status()
-        return updateSO(s, 'createUserNS', 'success', 'User {0} was created'.format(email))
+        return updateSO(s, 'createUserNS', 'success', 'NS {0} was created'.format(email))
     except requests.exceptions.RequestException as e:  
         return updateSO(s, 'createUserNS', 'error', e)
 
 def delUserNS(email, s):
-    userNS = email.split('@')[0].replace('.', '-').lower()
+    userNS = findUserNS(email)
     url = s['urlBase'] + "/api/web/namespaces/{0}/cascade_delete".format(userNS)
     nsPayload = {
         "name": userNS
@@ -98,7 +107,7 @@ def delUserNS(email, s):
     try:
         resp = s['session'].post(url, json=nsPayload)
         resp.raise_for_status()
-        return updateSO(s, 'delUserNS', 'success', 'User {0} deleted'.format(email)) 
+        return updateSO(s, 'delUserNS', 'success', 'NS {0} deleted'.format(email)) 
     except requests.exceptions.RequestException as e:  
         return updateSO(s, 'delUserNS', 'error', e)
 
@@ -158,26 +167,26 @@ def cliAdd(token, tenant, email, first_name, last_name, createNS, oRide):
         userExist = True
     if oRide:                                                                                   #Handle the override
         if createNS:
-            checkNS(email,s) 
+            checkUserNS(email,s) 
             if s['log'][-1]['status'] == 'present':                                             #Is the NS present?
                 delUserNS(email, s)                                                             #Delete the NS (and everything inside)
             createUserNS(email, s)                                                              #Create the NS
-            createdNS = s['log'][-1]['resp']['metadata']['name']                                #TBD: More robust -- check for success
+            createdNS = findUserNS(email)                                                       #TBD: More robust -- check for success
         createUserRoles(email, first_name, last_name, s, createdNS, userExist)                  #Create the user with her roles
         return {'status': 'success', 'log': s['log']}
     else:                                                                                       #Standard use case
         if createNS:
-            checkNS(email,s)
+            checkUserNS(email,s)
             if s['log'][-1]['status'] == 'present':                                             #Is the NS present?
                 return {'status': 'failure', 'reason': 'NS already exists', 'log': s['log']}    #No oRide -- this is fatal
             else:   
                 createUserNS(email, s)                                                          #Create the NS
-                createdNS = s['log'][-1]['resp']['metadata']['name']                            #TBD: more robust
+                createdNS = findUserNS(email)                                                   #TBD: more robust
         if userExist:                                                                           #User is present
             return {'status': 'failure', 'reason': 'User already exists', 'log': s['log']}      #No oRide -- this is fatal
         else:
             createUserRoles(email, first_name, last_name, s, createdNS)                         #Create the user
-            return {'status': 'success', 'log': s['logs']}
+            return {'status': 'success', 'log': s['log']}
  
 
 def cliRemove(token, tenant, email):

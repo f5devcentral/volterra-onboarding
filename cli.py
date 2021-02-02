@@ -12,8 +12,8 @@ from pathlib import Path
 from helpers import processRequest, readConfig, writeConfig
 from volterra_helpers import cliAdd, cliRemove
 
-# logging.basicConfig(level=logging.WARNING)
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.WARNING)
+# logging.basicConfig(level=logging.DEBUG)
 
 
 @click.group()

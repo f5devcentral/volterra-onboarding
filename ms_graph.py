@@ -4,8 +4,8 @@ import logging
 from string import Template
 
 get_group_by_name_url_template = "https://graph.microsoft.com/v1.0/groups?$$filter=displayName eq '$name'&$$select=id"
-get_group_members_url_template = "https://graph.microsoft.com/v1.0/groups/$group_id/transitiveMembers?$$select=givenName,surname,userPrincipalName"
-get_user_url_template = "https://graph.microsoft.com/v1.0/users?$$filter=userPrincipalName eq '$email'&$$select=givenName,surname,userPrincipalName"
+get_group_members_url_template = "https://graph.microsoft.com/v1.0/groups/$group_id/transitiveMembers?$$select=givenName,surname,userPrincipalName,displayName"
+get_user_url_template = "https://graph.microsoft.com/v1.0/users?$$filter=userPrincipalName eq '$email'&$$select=givenName,surname,userPrincipalName,displayName"
 
 
 def getGroupId(authorization_token: str, name: str) -> str:
@@ -31,6 +31,13 @@ def getGroupMembers(authorization_token: str, group_id: str) -> [dict]:
     users = []
     for user in resp:
         if user['@odata.type'] == "#microsoft.graph.user":
+            # make sure givenName and surname exist
+            if not user['givenName'] and not user['surname']:
+                if user['displayName']:
+                    user['givenName'], user['surname'] = user['displayName'].split(
+                        " ", 2)
+                else:
+                    raise ValueError("No givenName or surname found for user")
             users.append({
                 "userPrincipalName": user['userPrincipalName'],
                 "givenName": user['givenName'],
@@ -44,7 +51,18 @@ def getUser(authorization_token: str, email: str) -> dict:
     graph_url = Template(get_user_url_template).substitute(email=email)
     resp = getAzureGraph(authorization_token, graph_url)
     if resp:
-        return resp[0]
+        # make sure givenName and surname exist
+        user = resp[0]
+        logging.debug(user)
+        logging.debug(
+            f'if not {user["givenName"]} and not {user["surname"]}')
+        if user['givenName'] is None and user['surname'] is None:
+            if user['displayName']:
+                user['givenName'], user['surname'] = user['displayName'].split(
+                    " ", 2)
+            else:
+                raise ValueError("No givenName or surname found for user")
+        return user
     else:
         raise ValueError(f'Azure AD user {email} not found')
 
