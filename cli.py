@@ -10,8 +10,8 @@ from msal_interactive_flow import retrieveAccessToken
 from pathlib import Path
 from helpers import readConfig, writeConfig
 
-# logging.basicConfig(level=logging.WARNING)
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.WARNING)
+# logging.basicConfig(level=logging.DEBUG)
 
 
 @click.group()
