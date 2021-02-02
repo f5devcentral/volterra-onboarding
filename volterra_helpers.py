@@ -113,7 +113,6 @@ def delUserNS(email, s):
 
 def createUserRoles(email, first_name, last_name, s, createdNS=None, exists=False, admin=False):
     url = s['urlBase'] + "/api/web/custom/namespaces/system/user_roles"
-    print(f'ADMIN:{admin}')
     if admin:
         namespace_roles = [
             {'namespace': 'system', 'role': 'ves-io-admin-role'},
