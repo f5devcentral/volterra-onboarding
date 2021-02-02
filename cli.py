@@ -133,7 +133,10 @@ def volterra(tenant: str, apikey: str):
             }
         }
     else:
-        data['volterra_tenants'][tenant] = apikey
+        if 'volterra_tenants' in data.keys():
+            data['volterra_tenants'][tenant] = apikey
+        else:
+            data['volterra_tenants'] = {tenant: apikey}
     payload = writeConfig(config_file, data)
     pass
 
