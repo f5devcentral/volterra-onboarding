@@ -25,11 +25,11 @@ def writeConfig(config_file: str, data: str) -> str:
     os.chmod(config_file, 0o600)
 
 
-def processUser(action: str, namespace_action: bool, overwrite: bool, tenant: str, token: str, user: dict) -> dict:
+def processUser(action: str, namespace_action: bool, overwrite: bool, tenant: str, token: str, user: dict, admin: bool) -> dict:
     """Add or remove a user from Volterra Console"""
     if action == 'add':
         result = cliAdd(token, tenant, user['userPrincipalName'],
-                        user['givenName'], user['surname'], namespace_action, overwrite)
+                        user['givenName'], user['surname'], namespace_action, overwrite, admin)
         logging.debug(f'result:{result}')
         return result
     else:
@@ -38,7 +38,7 @@ def processUser(action: str, namespace_action: bool, overwrite: bool, tenant: st
         return result
 
 
-def processRequest(action: str, authorization_token: str, name: str, namespace_action: bool, overwrite: bool, tenant: str, token: str) -> bool:
+def processRequest(action: str, authorization_token: str, name: str, namespace_action: bool, overwrite: bool, tenant: str, token: str, admin: bool) -> dict:
     """Process request to add or remove user(s) from Volterra Console"""
     logging.debug(
         f'action:{action}, name:{name}, tenant:{tenant}, namespace_action:{namespace_action}')
@@ -52,7 +52,7 @@ def processRequest(action: str, authorization_token: str, name: str, namespace_a
         logging.debug(f'user:{user}')
         # Process user
         result = processUser(action, namespace_action,
-                             overwrite, tenant, token, user)
+                             overwrite, tenant, token, user, admin)
         logging.debug(f'processUser:{result}')
         # build response payload
         logging.debug(f'user:{user}')
@@ -68,7 +68,7 @@ def processRequest(action: str, authorization_token: str, name: str, namespace_a
         # process each user
         for user in users:
             result = processUser(action, namespace_action,
-                                 overwrite, tenant, token, user)
+                                 overwrite, tenant, token, user, admin)
             logging.debug(f'processUser:{result}')
             # build response payload
             user['result'] = result

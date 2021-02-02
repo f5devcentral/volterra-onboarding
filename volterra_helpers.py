@@ -111,8 +111,24 @@ def delUserNS(email, s):
     except requests.exceptions.RequestException as e:  
         return updateSO(s, 'delUserNS', 'error', e)
 
-def createUserRoles(email, first_name, last_name, s, createdNS=None, exists=False):
+def createUserRoles(email, first_name, last_name, s, createdNS=None, exists=False, admin=False):
     url = s['urlBase'] + "/api/web/custom/namespaces/system/user_roles"
+    print(f'ADMIN:{admin}')
+    if admin:
+        namespace_roles = [
+            {'namespace': 'system', 'role': 'ves-io-admin-role'},
+            {'namespace': '*', 'role': 'ves-io-admin-role'},
+            {'namespace': 'default', 'role': 'ves-io-admin-role'},
+            {'namespace': 'shared', 'role': 'ves-io-admin-role'}
+        ]
+    else:
+        namespace_roles = [
+            {'namespace': 'system', 'role': 'ves-io-power-developer-role'},
+            {'namespace': 'system', 'role': 'f5-demo-infra-write'},
+            {'namespace': '*', 'role': 'ves-io-monitor-role'},
+            {'namespace': 'default', 'role': 'ves-io-power-developer-role'},
+            {'namespace': 'shared', 'role': 'ves-io-power-developer-role'}
+        ]
     userPayload = {
         'email': email, 
         'first_name': first_name, 
@@ -120,15 +136,8 @@ def createUserRoles(email, first_name, last_name, s, createdNS=None, exists=Fals
         'name': email, 
         'idm_type': 'SSO', 
         'namespace': 'system', 
-        'namespace_roles': 
-            [
-                {'namespace': 'system', 'role': 'ves-io-power-developer-role'}, 
-                {'namespace': 'system', 'role': 'f5-demo-infra-write'},
-                {'namespace': '*', 'role': 'ves-io-monitor-role'}, 
-                {'namespace': 'default', 'role': 'ves-io-power-developer-role'}, 
-                {'namespace': 'shared', 'role': 'ves-io-power-developer-role'} 
-            ], 
-            'type': 'USER'
+        'namespace_roles': namespace_roles,
+        'type': 'USER'
     }
     if createdNS:
         userPayload['namespace_roles'].append({'namespace': createdNS, 'role': 'ves-io-admin-role'})
@@ -155,7 +164,7 @@ def delUser(email, s):
     except requests.exceptions.RequestException as e:  
         return updateSO(s, 'delUser', 'error', e)
 
-def cliAdd(token, tenant, email, first_name, last_name, createNS, oRide):
+def cliAdd(token, tenant, email, first_name, last_name, createNS, oRide, admin):
     createdNS = None
     s = createVoltSession(token, tenant)
     c = createUserCache(s)
@@ -172,7 +181,7 @@ def cliAdd(token, tenant, email, first_name, last_name, createNS, oRide):
                 delUserNS(email, s)                                                             #Delete the NS (and everything inside)
             createUserNS(email, s)                                                              #Create the NS
             createdNS = findUserNS(email)                                                       #TBD: More robust -- check for success
-        createUserRoles(email, first_name, last_name, s, createdNS, userExist)                  #Create the user with her roles
+        createUserRoles(email, first_name, last_name, s, createdNS, userExist, admin)           #Create the user with her roles
         return {'status': 'success', 'log': s['log']}
     else:                                                                                       #Standard use case
         if createNS:
@@ -185,7 +194,7 @@ def cliAdd(token, tenant, email, first_name, last_name, createNS, oRide):
         if userExist:                                                                           #User is present
             return {'status': 'failure', 'reason': 'User already exists', 'log': s['log']}      #No oRide -- this is fatal
         else:
-            createUserRoles(email, first_name, last_name, s, createdNS)                         #Create the user
+            createUserRoles(email, first_name, last_name, s, createdNS, False, admin)           #Create the user
             return {'status': 'success', 'log': s['log']}
  
 

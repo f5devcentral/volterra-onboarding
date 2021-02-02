@@ -31,7 +31,8 @@ def config():
 @click.option('--tenant', prompt='tenant', help='Volterra tenant name is required.')
 @click.option('--createns', default=True, type=bool, help='Create Namespace for user.')
 @click.option('--overwrite', default=False, type=bool, help='Overwrite existing Volterra API objects.')
-def add(name, tenant, createns, overwrite):
+@click.option('--admin', default=False, type=bool, help='Make user Volterra tenant admin')
+def add(name, tenant, createns, overwrite, admin):
     """Adds user/group to the Volterra Console.
 
     NAME argument takes:
@@ -51,7 +52,7 @@ def add(name, tenant, createns, overwrite):
         click.echo('No API token found for tenant', err=True)
 
     response = processRequest(
-        'add', authorization_token, name, createns, overwrite, tenant, token)
+        'add', authorization_token, name, createns, overwrite, tenant, token, admin)
     logging.debug(f'response:{response}')
     cliDisplayRequestResults('add', response)
 
@@ -61,7 +62,7 @@ def add(name, tenant, createns, overwrite):
 # remove user/group
 @click.command()
 @click.argument('name')
-@click.option("--tenant", prompt="tenant", help="Volterra tenant.")
+@click.option('--tenant', prompt='tenant', help='Volterra tenant.')
 @click.option('--removens', default=True, type=bool, help='Remove Namespace for user.')
 def remove(name, tenant, removens):
     """Removes user/group to the Volterra Console.
@@ -81,7 +82,7 @@ def remove(name, tenant, removens):
         click.echo('No API token found for tenant', err=True)
 
     response = processRequest(
-        'remove', authorization_token, name, removens, False, tenant, token)
+        'remove', authorization_token, name, removens, False, tenant, token, False)
     logging.debug(f'response:{response}')
 
     cliDisplayRequestResults('remove', response)
