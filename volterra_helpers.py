@@ -186,7 +186,7 @@ def cliAdd(token, tenant, email, first_name, last_name, createNS, oRide):
             return {'status': 'failure', 'reason': 'User already exists', 'log': s['log']}      #No oRide -- this is fatal
         else:
             createUserRoles(email, first_name, last_name, s, createdNS)                         #Create the user
-            return {'status': 'success', 'log': s['logs']}
+            return {'status': 'success', 'log': s['log']}
  
 
 def cliRemove(token, tenant, email):
