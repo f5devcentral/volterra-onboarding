@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from binascii import Error
 import click
 import sys
 import json
@@ -9,6 +10,7 @@ from ms_graph import getGroupId, getGroupMembers, getUser
 from msal_interactive_flow import retrieveAccessToken
 from pathlib import Path
 from helpers import readConfig, writeConfig
+from volterra_helpers import cliAdd, cliRemove
 
 # logging.basicConfig(level=logging.WARNING)
 logging.basicConfig(level=logging.DEBUG)
@@ -31,7 +33,8 @@ def config():
 @click.argument('name')
 @click.option('--tenant', prompt='tenant', help='Volterra tenant name is required.')
 @click.option('--createns', default=True, type=bool, help='Create Namespace for user.')
-def add(name, tenant, createns):
+@click.option('--overwrite', default=False, type=bool, help='Overwrite existing Volterra API objects.')
+def add(name, tenant, createns, overwrite):
     """Adds user/group to the Volterra Console.
 
     NAME argument takes:
@@ -40,17 +43,26 @@ def add(name, tenant, createns):
 
             - Azure AD group name
 
-    createns defaults to False.
+    createns defaults to True.
+
+    overwrite defaults to false.
     """
     logging.debug('adding user/group')
     logging.debug(f'tenant:{tenant}')
     logging.debug(f'name:{name}')
     logging.debug(f'create namespace:{createns}')
+    logging.debug(f'overwrite:{overwrite}')
 
     # ensure we have an authorization token
     if "authorization_token" not in globals():
         logging.debug('No authorization token found')
         raise ValueError('No configuration found')
+
+    # ensure we have an API token for the Volterra tenant
+    try:
+        token = volterraTenants[tenant]
+    except KeyError as e:
+        click.echo('No API token found for tenant', err=True) #err=True seems to do nothing
 
     # determine if name is a user or group
     if "@" in name:
@@ -63,6 +75,14 @@ def add(name, tenant, createns):
                 f'Adding user:{user["surname"]}, {user["givenName"]}', fg='green'))
         except ValueError as e:
             click.echo(e, err=True)
+
+        # Call Volterra API for proposed changes
+        try:
+            result = cliAdd(token, tenant, user['userPrincipalName'], user['givenName'], user['surname'], createns, overwrite)
+            logging.debug(f'result:{result}')
+        except Exception as e:
+            click.echo(e, err=True)
+
     else:
         logging.debug('adding a group')
         # Get group member data from Azure AD
@@ -73,6 +93,13 @@ def add(name, tenant, createns):
             for user in users:
                 click.echo(click.style(
                     f'Adding user:{user["surname"]}, {user["givenName"]}', fg='green'))
+                # Call Volterra API for each user. 
+                # TBD: refactor this to share a session 
+                try:
+                    result = cliAdd(token, tenant, user['userPrincipalName'], user['givenName'], user['surname'], createns, overwrite)
+                    logging.debug(f'result:{result}')
+                except Exception as e:
+                    click.echo(e, err=True)
         except ValueError as e:
             click.echo(e, err=True)
 
@@ -154,6 +181,10 @@ if __name__ == '__main__':
             authorization_token = retrieveAccessToken(
                 config['client_id'], config['tenant_id'])
             # logging.debug(f'authorization_token: {authorization_token}')
+
+        # load possible tenant tokens
+        volterraTenants = config['volterra_tenants']
+    
 
     try:
         cli()
