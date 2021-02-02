@@ -181,7 +181,7 @@ def cliAdd(token, tenant, email, first_name, last_name, createNS, oRide):
                 return {'status': 'failure', 'reason': 'NS already exists', 'log': s['log']}    #No oRide -- this is fatal
             else:   
                 createUserNS(email, s)                                                          #Create the NS
-                createdNS = s['log'][-1]['resp']['metadata']['name']                            #TBD: more robust
+                createdNS = findUserNS(email)                                                   #TBD: more robust
         if userExist:                                                                           #User is present
             return {'status': 'failure', 'reason': 'User already exists', 'log': s['log']}      #No oRide -- this is fatal
         else:
