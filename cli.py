@@ -55,15 +55,8 @@ def add(name, tenant, createns, overwrite):
     response = processRequest(
         'add', authorization_token, name, createns, overwrite, tenant, token)
     logging.debug(f'response:{response}')
+    cliDisplayRequestResults(response)
 
-    # display results
-    for user in response:
-        if user['result']['status'] == 'success':
-            click.echo(click.style(
-                f'user {user["surname"]}, {user["givenName"]} added', fg='green'))
-        else:
-            click.echo(click.style(
-                f'user {user["surname"]}, {user["givenName"]} not added: {user["result"]["reason"]}', fg='red'))
     pass
 
 
@@ -87,14 +80,7 @@ def remove(name, tenant, removens):
         'remove', authorization_token, name, removens, tenant)
     logging.debug(f'response:{response}')
 
-    # display results
-    for user in response:
-        if user['result']['status'] == 'success':
-            click.echo(click.style(
-                f'user {user["surname"]}, {user["givenName"]} added', fg='green'))
-        else:
-            click.echo(click.style(
-                f'user {user["surname"]}, {user["givenName"]} not added: {user["result"]["reason"]}', fg='red'))
+    cliDisplayRequestResults(response)
     pass
 
 
@@ -135,6 +121,20 @@ def volterra(tenant: str, apikey: str):
         else:
             data['volterra_tenants'] = {tenant: apikey}
     payload = writeConfig(config_file, data)
+    pass
+
+
+def cliDisplayRequestResults(users):
+    """Display the process requests results in the CLI"""
+    # display results
+    for user in users:
+        if user['result']['status'] == 'success':
+            click.echo(click.style(
+                f'user {user["surname"]}, {user["givenName"]} added', fg='green'))
+        else:
+            click.echo(click.style(
+                f'user {user["surname"]}, {user["givenName"]} not added: {user["result"]["reason"]}', fg='red'))
+
     pass
 
 
