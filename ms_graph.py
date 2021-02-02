@@ -31,6 +31,15 @@ def getGroupMembers(authorization_token: str, group_id: str) -> [dict]:
     users = []
     for user in resp:
         if user['@odata.type'] == "#microsoft.graph.user":
+            # make sure givenName and surname exist
+            if not user['givenName'] and not user['surname']:
+                if user['displayName']:
+                    user['givenName'], user['surname'] = user['displayName'].split(
+                        " ", 2)
+                else:
+                    raise ValueError("No givenName or surname found for user")
+            else:
+                raise ValueError("No givenName or surname found for user")
             users.append({
                 "userPrincipalName": user['userPrincipalName'],
                 "givenName": user['givenName'],
