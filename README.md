@@ -40,3 +40,16 @@ The example below adds all users of the SRE group to the Volterra console.
 ```bash
 ./cli.py add SRE --tenant mytenant
 ```
+
+## Troubleshoot
+You can increase the logging level by running the following config command:
+```bash
+./cli.py config loglevel
+```
+
+Supported log levels are:
+- CRITICAL
+- ERROR
+- WARNING
+- INFO
+- DEBUG
