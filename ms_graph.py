@@ -4,7 +4,7 @@ import logging
 from string import Template
 
 get_group_by_name_url_template = "https://graph.microsoft.com/v1.0/groups?$$filter=displayName eq '$name'&$$select=id"
-get_group_members_url_template = "https://graph.microsoft.com/v1.0/groups/$group_id/transitiveMembers"
+get_group_members_url_template = "https://graph.microsoft.com/v1.0/groups/$group_id/transitiveMembers?$$select=givenName,surname,userPrincipalName"
 get_user_url_template = "https://graph.microsoft.com/v1.0/users?$$filter=userPrincipalName eq '$email'&$$select=givenName,surname,userPrincipalName"
 
 
@@ -14,10 +14,10 @@ def getGroupId(authorization_token: str, name: str) -> str:
     resp = getAzureGraph(authorization_token, graph_url)
 
     # ensure we have an ID
-    if resp.json()['value'] and 'id' in resp.json()['value'][0].keys():
-        return resp.json()['value'][0]['id']
+    if len(resp) > 0:
+        return resp[0]['id']
     else:
-        raise ValueError(f'Azure AD Group {name} not found')
+        raise ValueError(f'Azure Group {name} not found')
 
 
 def getGroupMembers(authorization_token: str, group_id: str) -> [dict]:
@@ -29,34 +29,46 @@ def getGroupMembers(authorization_token: str, group_id: str) -> [dict]:
 
     resp = getAzureGraph(authorization_token, graph_url)
     users = []
-    # Make sure we're processing a user
-    if resp.json()['value']:
-        for user in resp.json()['value']:
-            if user['@odata.type'] == "#microsoft.graph.user":
-                users.append({
-                    "userPrincipalName": user['userPrincipalName'],
-                    "givenName": user['givenName'],
-                    "surname": user['surname']
-                })
-        return users
-    else:
-        raise ValueError(f'Azure AD Group {group_id} has no members')
+    for user in resp:
+        if user['@odata.type'] == "#microsoft.graph.user":
+            users.append({
+                "userPrincipalName": user['userPrincipalName'],
+                "givenName": user['givenName'],
+                "surname": user['surname']
+            })
+    return users
 
 
 def getUser(authorization_token: str, email: str) -> dict:
     """Obtain Azure AD user based upon email address"""
     graph_url = Template(get_user_url_template).substitute(email=email)
     resp = getAzureGraph(authorization_token, graph_url)
-    if resp.json()['value']:
-        return resp.json()['value'][0]
+    if resp:
+        return resp[0]
     else:
         raise ValueError(f'Azure AD user {email} not found')
 
 
 def getAzureGraph(authorization_token: str, url: str) -> dict:
     """Make Azure API Graph GET call with supplied url"""
+    payload = []
     graph_response = requests.get(  # Use token to call downstream service
         url,
         headers={'Authorization': 'Bearer ' + authorization_token},)
     graph_response.raise_for_status()
-    return graph_response
+
+    payload.extend(graph_response.json()['value'])
+
+    # check for pagination
+    if '@odata.nextLink' in graph_response.json().keys():
+        logging.debug('Pagination detected, process nextLink')
+        next_graph_response = getAzureGraph(authorization_token,
+                                            graph_response.json()['@odata.nextLink'])
+        # check if anything was returned
+        if type(next_graph_response) is list:
+            payload.extend(next_graph_response)
+        elif 'value' in next_graph_response.json().keys():
+            payload.extend(next_graph_response.json()['value'])
+
+    # return graph_response
+    return payload
