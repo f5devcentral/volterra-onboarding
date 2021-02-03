@@ -17,8 +17,6 @@ This script requires
 - [Volterra API Key](https://www.volterra.io/docs/how-to/user-mgmt/credentials?query=Generate%20API%20Tokens)
 
 # Setup
-To use this script you will need need:
-
 To configure the script please run the following commands:
 ```bash
 pip3 install -r requirements.txt
@@ -26,8 +24,14 @@ pip3 install -r requirements.txt
 ./cli.py config volterra
 ```
 
+For more information about each action use the built-in help:
+```bash
+./cli.py config azure --help
+./cli.py config volterra --help
+```
+
 # Usage
-The script can add an individual user or all users in an AD group to the Volterra console.
+The script can add an individual user or all users in an AD group to the Volterra console. 
 
 ## Add User
 The example below adds the yourusername@example.com user to the Volterra console.
@@ -41,7 +45,26 @@ The example below adds all users of the SRE group to the Volterra console.
 ./cli.py add SRE --tenant mytenant
 ```
 
-## Troubleshoot
+## Remove User
+The example below removes the yourusername@example.com user to the Volterra console.
+```bash
+./cli.py remove yourusername@example.com --tenant mytenant
+```
+
+## Remove Group
+The example below adds all users of the SRE group to the Volterra console.
+```bash
+./cli.py remove SRE --tenant mytenant
+```
+
+For more information about each action use the built-in help:
+```bash
+./cli.py --help
+./cli.py add --help
+./cli.py remove --help
+./cli.py config --help
+```
+# Troubleshoot
 You can increase the logging level by running the following config command:
 ```bash
 ./cli.py config loglevel
@@ -53,3 +76,12 @@ Supported log levels are:
 - WARNING
 - INFO
 - DEBUG
+
+# Additional Scripts
+### AD Group Compare
+This script will compate the users in the Voltera Tenant Console versus an Active Directory Group.  The script will display the users to are missing from the Azure AD group.
+
+```bash
+./ad_group_compare.py --help
+./ad_group_compare.py --name SRE --tenant mytenant
+```
