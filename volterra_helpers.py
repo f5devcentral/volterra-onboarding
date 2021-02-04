@@ -181,7 +181,10 @@ def cliAdd(token, tenant, email, first_name, last_name, createNS, oRide, admin):
             createUserNS(email, s)                                                              #Create the NS
             createdNS = findUserNS(email)                                                       #TBD: More robust -- check for success
         createUserRoles(email, first_name, last_name, s, createdNS, userExist, admin)           #Create the user with her roles
-        return {'status': 'success', 'log': s['log']}
+        if s['log'][-1]['status'] == 'success':
+            return {'status': 'success', 'log': s['log']}
+        else:
+            return {'status': 'failure', 'log': s['log']}
     else:                                                                                       #Standard use case
         if createNS:
             checkUserNS(email,s)
@@ -193,8 +196,11 @@ def cliAdd(token, tenant, email, first_name, last_name, createNS, oRide, admin):
         if userExist:                                                                           #User is present
             return {'status': 'failure', 'reason': 'User already exists', 'log': s['log']}      #No oRide -- this is fatal
         else:
-            createUserRoles(email, first_name, last_name, s, createdNS, False, admin)           #Create the user
-            return {'status': 'success', 'log': s['log']}
+            createUserRoles(email, first_name, last_name, s, createdNS, False, admin)          #Create the user
+            if s['log'][-1]['status'] == 'success':
+                return {'status': 'success', 'log': s['log']}
+            else:
+                return {'status': 'failure', 'log': s['log']}
  
 
 def cliRemove(token, tenant, email):
