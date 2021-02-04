@@ -129,10 +129,10 @@ def createUserRoles(email, first_name, last_name, s, createdNS=None, exists=Fals
             {'namespace': 'shared', 'role': 'ves-io-power-developer-role'}
         ]
     userPayload = {
-        'email': email, 
+        'email': email.lower(), 
         'first_name': first_name, 
         'last_name': last_name, 
-        'name': email, 
+        'name': email.lower(), 
         'idm_type': 'SSO', 
         'namespace': 'system', 
         'namespace_roles': namespace_roles,
