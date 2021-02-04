@@ -173,7 +173,7 @@ def cliAdd(token, tenant, email, first_name, last_name, createNS, oRide, admin):
     checkUser(email, s, c)                                                                      #Is the user present?
     if s['log'][-1]['status'] == 'present':
         userExist = True
-    if oRide:                                                                                   #Handle the override
+    if oRide:                                                                                   #Handle 'overwrite'
         if createNS:
             checkUserNS(email,s) 
             if s['log'][-1]['status'] == 'present':                                             #Is the NS present?
@@ -196,7 +196,7 @@ def cliAdd(token, tenant, email, first_name, last_name, createNS, oRide, admin):
         if userExist:                                                                           #User is present
             return {'status': 'failure', 'reason': 'User already exists', 'log': s['log']}      #No oRide -- this is fatal
         else:
-            createUserRoles(email, first_name, last_name, s, createdNS, False, admin)          #Create the user
+            createUserRoles(email, first_name, last_name, s, createdNS, False, admin)           #Create the user
             if s['log'][-1]['status'] == 'success':
                 return {'status': 'success', 'log': s['log']}
             else:
