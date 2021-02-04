@@ -184,7 +184,7 @@ def cliAdd(token, tenant, email, first_name, last_name, createNS, oRide, admin):
         if s['log'][-1]['status'] == 'success':
             return {'status': 'success', 'log': s['log']}
         else:
-            return {'status': 'failure', 'log': s['log']}
+            return {'status': 'failure', 'reason': 'User creation failed', 'log': s['log']}
     else:                                                                                       #Standard use case
         if createNS:
             checkUserNS(email,s)
@@ -200,7 +200,7 @@ def cliAdd(token, tenant, email, first_name, last_name, createNS, oRide, admin):
             if s['log'][-1]['status'] == 'success':
                 return {'status': 'success', 'log': s['log']}
             else:
-                return {'status': 'failure', 'log': s['log']}
+                return {'status': 'failure','reason': 'User creation failed', 'log': s['log']}
  
 
 def cliRemove(token, tenant, email):
