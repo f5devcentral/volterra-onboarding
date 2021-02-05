@@ -129,10 +129,10 @@ def createUserRoles(email, first_name, last_name, s, createdNS=None, exists=Fals
             {'namespace': 'shared', 'role': 'ves-io-power-developer-role'}
         ]
     userPayload = {
-        'email': email, 
+        'email': email.lower(), 
         'first_name': first_name, 
         'last_name': last_name, 
-        'name': email, 
+        'name': email.lower(), 
         'idm_type': 'SSO', 
         'namespace': 'system', 
         'namespace_roles': namespace_roles,
@@ -173,7 +173,7 @@ def cliAdd(token, tenant, email, first_name, last_name, createNS, oRide, admin):
     checkUser(email, s, c)                                                                      #Is the user present?
     if s['log'][-1]['status'] == 'present':
         userExist = True
-    if oRide:                                                                                   #Handle the override
+    if oRide:                                                                                   #Handle 'overwrite'
         if createNS:
             checkUserNS(email,s) 
             if s['log'][-1]['status'] == 'present':                                             #Is the NS present?
@@ -181,7 +181,10 @@ def cliAdd(token, tenant, email, first_name, last_name, createNS, oRide, admin):
             createUserNS(email, s)                                                              #Create the NS
             createdNS = findUserNS(email)                                                       #TBD: More robust -- check for success
         createUserRoles(email, first_name, last_name, s, createdNS, userExist, admin)           #Create the user with her roles
-        return {'status': 'success', 'log': s['log']}
+        if s['log'][-1]['status'] == 'success':
+            return {'status': 'success', 'log': s['log']}
+        else:
+            return {'status': 'failure', 'reason': 'User creation failed', 'log': s['log']}
     else:                                                                                       #Standard use case
         if createNS:
             checkUserNS(email,s)
@@ -194,7 +197,10 @@ def cliAdd(token, tenant, email, first_name, last_name, createNS, oRide, admin):
             return {'status': 'failure', 'reason': 'User already exists', 'log': s['log']}      #No oRide -- this is fatal
         else:
             createUserRoles(email, first_name, last_name, s, createdNS, False, admin)           #Create the user
-            return {'status': 'success', 'log': s['log']}
+            if s['log'][-1]['status'] == 'success':
+                return {'status': 'success', 'log': s['log']}
+            else:
+                return {'status': 'failure','reason': 'User creation failed', 'log': s['log']}
  
 
 def cliRemove(token, tenant, email):

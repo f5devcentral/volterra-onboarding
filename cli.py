@@ -6,11 +6,9 @@ import json
 import os
 import logging
 
-from ms_graph import getGroupId, getGroupMembers, getUser
 from msal_interactive_flow import retrieveAccessToken
 from pathlib import Path
 from helpers import processRequest, readConfig, writeConfig
-from volterra_helpers import cliAdd, cliRemove
 
 
 @click.group()
