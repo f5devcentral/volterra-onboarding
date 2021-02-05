@@ -160,7 +160,7 @@ def createUserRoles(email, first_name, last_name, s, createdNS=None, exists=Fals
 def delUser(email, s):
     url = s['urlBase'] + "/api/web/custom/namespaces/system/users/cascade_delete"
     userPayload = {
-        "email": email,
+        "email": email.lower(),
         "namespace": "system"
     }
     try:
