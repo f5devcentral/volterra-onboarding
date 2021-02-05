@@ -172,7 +172,6 @@ def delUser(email, s):
 
 def cliAdd(s, email, first_name, last_name, createNS, overwrite, admin):
     createdNS = None
-    #We need to know if the user and/or NS exists
     userExist = False
     nsExist = False
     checkUser(email, s)                                                                      
