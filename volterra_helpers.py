@@ -2,35 +2,6 @@ import requests
 import json
 import datetime
 
-def updateSO(s, op, status, message):
-    now = datetime.datetime.now()
-    action = {
-        'operation': op,
-        'status': status,
-        'time': now.strftime("%m/%d/%Y, %H:%M:%S"),
-        'message': message
-    }
-    s['log'].append(action)
-    return s
-
-def createUserCache(s, cacheTO=60):
-    url = s['urlBase'] + "/api/web/custom/namespaces/system/user_roles"
-    try:
-        resp = s['session'].get(url)
-        resp.raise_for_status()
-        users = json.loads(resp.text)['items']
-    except requests.exceptions.RequestException as e: 
-        return updateSO(s, 'popUserCache', 'error', e)
-    except json.decoder.JSONDecodeError as e:
-        return updateSO(s, 'popUserCache', 'error', e)
-    expiry = datetime.datetime.now() + datetime.timedelta(seconds=cacheTO)
-    cache = {
-        'expiry': expiry.timestamp(),
-        'tenantUsers': users
-    }
-    updateSO(s, 'createUserCache', 'success', "userCache populated")
-    return cache
-
 def createVoltSession(token, tenantName):
     now = datetime.datetime.now()
     apiToken = "APIToken {0}".format(token)
@@ -43,9 +14,48 @@ def createVoltSession(token, tenantName):
         'message': 'voltSession created',
         'time': now.strftime("%m/%d/%Y, %H:%M:%S")
     }
-    logs = [create]
-    session = {'session': s, 'urlBase': urlBase, 'log': logs}
+    session = {'session': s, 'urlBase': urlBase, 'lastOp': create}
+    createCache(session)
     return session
+
+def updateSO(s, op, status, message):
+    now = datetime.datetime.now()
+    action = {
+        'operation': op,
+        'status': status,
+        'time': now.strftime("%m/%d/%Y, %H:%M:%S"),
+        'message': message
+    }
+    s['lastOp'] = action
+    return s
+
+def createCache(s, cacheTO=60):
+    urlUsers = s['urlBase'] + "/api/web/custom/namespaces/system/user_roles"
+    try:
+        resp = s['session'].get(urlUsers)
+        resp.raise_for_status()
+        users = json.loads(resp.text)['items']
+    except requests.exceptions.RequestException as e: 
+        return updateSO(s, 'createCache', 'error', e)
+    except json.decoder.JSONDecodeError as e:
+        return updateSO(s, 'createCache', 'error', e)
+    urlNSs = s['urlBase'] + "/api/web/namespaces"
+    try:
+        resp = s['session'].get(urlNSs)
+        resp.raise_for_status()
+        namespaces = json.loads(resp.text)['items']
+    except requests.exceptions.RequestException as e: 
+        return updateSO(s, 'createCache', 'error', e)
+    except json.decoder.JSONDecodeError as e:
+        return updateSO(s, 'createCache', 'error', e)
+    expiry = datetime.datetime.now() + datetime.timedelta(seconds=cacheTO)
+    cache = {
+        'expiry': expiry.timestamp(),
+        'users': users,
+        'namespaces': namespaces,
+    }
+    s['cache'] = cache
+    updateSO(s, 'createCache', 'success', "Cache populated")
 
 def findUserNS(email):
     userNS = ""
@@ -57,21 +67,18 @@ def findUserNS(email):
     return userNS
     
 def checkUserNS(email, s):
+    if s['cache']['expiry'] < datetime.datetime.now().timestamp():
+        createCache(s)
     userNS = findUserNS(email)
-    url = s['urlBase'] + "/api/web/namespaces/{0}".format(userNS)
-    try:
-        resp = s['session'].get(url)
-        if 200 <= resp.status_code <= 299:
-            return updateSO(s, 'checkUserNS', 'present', 'NS is present')
-        else:
-            return updateSO(s, 'checkUserNS', 'absent', 'NS is absent')
-    except requests.exceptions.RequestException as e:  
-        return updateSO(s, 'checkUserNS', 'error', e)
+    thisUserNS = next((ns for ns in s['cache']['namespaces'] if ns['name'] == userNS), None)
+    if thisUserNS:
+        return updateSO(s, 'checkUserNS', 'present', 'UserNS {0} is present'.format(userNS))
+    return updateSO(s, 'checkUserNS', 'absent', 'UserNS {0} is absent'.format(userNS))
 
-def checkUser(email, s, c):
-    if c['expiry'] < datetime.datetime.now().timestamp():
-        createUserCache(s)
-    thisUser = next((user for user in c['tenantUsers'] if user['email'].lower() == email.lower()), None)
+def checkUser(email, s):
+    if s['cache']['expiry'] < datetime.datetime.now().timestamp():
+        createCache(s)
+    thisUser = next((user for user in s['cache']['users'] if user['email'].lower() == email.lower()), None)
     if thisUser:
         return updateSO(s, 'checkUser', 'present', 'User {0} is present'.format(email))
     return updateSO(s, 'checkUser', 'absent', 'User {0} is absent'.format(email))
@@ -153,7 +160,7 @@ def createUserRoles(email, first_name, last_name, s, createdNS=None, exists=Fals
 def delUser(email, s):
     url = s['urlBase'] + "/api/web/custom/namespaces/system/users/cascade_delete"
     userPayload = {
-        "email": email,
+        "email": email.lower(),
         "namespace": "system"
     }
     try:
@@ -163,49 +170,57 @@ def delUser(email, s):
     except requests.exceptions.RequestException as e:  
         return updateSO(s, 'delUser', 'error', e)
 
-def cliAdd(token, tenant, email, first_name, last_name, createNS, overwrite, admin):
+def cliAdd(s, email, first_name, last_name, createNS, overwrite, admin):
     createdNS = None
-    s = createVoltSession(token, tenant)
-    c = createUserCache(s)
-
-    #We need to know if the user exists
     userExist = False
-    checkUser(email, s, c)                                                                      #Is the user present?
-    if s['log'][-1]['status'] == 'present':
+    nsExist = False
+    checkUser(email, s)                                                                      
+    if s['lastOp']['status'] == 'present':
         userExist = True
-    if oRide:                                                                                   #Handle 'overwrite'
+    checkUserNS(email, s)
+    if s['lastOp']['status'] == 'present':
+        nsExist = True
+    if overwrite:                                                                               
         if createNS:
-            checkUserNS(email,s) 
-            if s['log'][-1]['status'] == 'present':                                             #Is the NS present?
-                delUserNS(email, s)                                                             #Delete the NS (and everything inside)
-            createUserNS(email, s)                                                              #Create the NS
-            createdNS = findUserNS(email)                                                       #TBD: More robust -- check for success
-        createUserRoles(email, first_name, last_name, s, createdNS, userExist, admin)           #Create the user with her roles
-        if s['log'][-1]['status'] == 'success':
-            return {'status': 'success', 'log': s['log']}
+            if nsExist:                                                                         
+                delUserNS(email, s)                                                             
+            createUserNS(email, s)                                                              
+            createdNS = findUserNS(email)                                                       
+        createUserRoles(email, first_name, last_name, s, createdNS, userExist, admin)           
+        if s['lastOp']['status'] == 'success':
+            return {'status': 'success'}
         else:
-            return {'status': 'failure', 'reason': 'User creation failed', 'log': s['log']}
-    else:                                                                                       #Standard use case
+            return {'status': 'failure', 'reason': 'User creation failed', 'log': s['lastOp']}
+    else:       
+        if nsExist or userExist:
+            return {'status': 'failure', 'reason': 'NS or User already exists', 'log': s['lastOp']}                                                                                          
         if createNS:
-            checkUserNS(email,s)
-            if s['log'][-1]['status'] == 'present':                                             #Is the NS present?
-                return {'status': 'failure', 'reason': 'NS already exists', 'log': s['log']}    #No oRide -- this is fatal
-            else:   
-                createUserNS(email, s)                                                          #Create the NS
-                createdNS = findUserNS(email)                                                   #TBD: more robust
-        if userExist:                                                                           #User is present
-            return {'status': 'failure', 'reason': 'User already exists', 'log': s['log']}      #No oRide -- this is fatal
+            createUserNS(email, s)                                                               
+            createdNS = findUserNS(email)                                                   
+        createUserRoles(email, first_name, last_name, s, createdNS, False, admin) 
+        if s['lastOp']['status'] == 'success':
+            return {'status': 'success'}
         else:
-            createUserRoles(email, first_name, last_name, s, createdNS, False, admin)           #Create the user
-            if s['log'][-1]['status'] == 'success':
-                return {'status': 'success', 'log': s['log']}
-            else:
-                return {'status': 'failure','reason': 'User creation failed', 'log': s['log']}
+            return {'status': 'failure', 'reason': 'User creation failed', 'log': s['lastOp']}
  
 
-def cliRemove(token, tenant, email):
-    s = createVoltSession(token, tenant)
-    delUserNS(email, s)
-    delUser(email, s)
-    return {'status': 'success', 'log': s['log']}
-
+def cliRemove(s, email):
+    userExist = False
+    nsExist = False
+    checkUser(email, s)                                                                      
+    if s['lastOp']['status'] == 'present':
+        userExist = True
+    checkUserNS(email, s)
+    if s['lastOp']['status'] == 'present':
+        nsExist = True
+    if not nsExist and not userExist:
+        return {'status': 'failure', 'reason': 'Neither NS nor User exist', 'log': s['lastOp']}
+    if nsExist:
+        delUserNS(email, s)
+        if s['lastOp']['status'] != 'success':
+            return {'status': 'failure', 'reason': 'NS deletion failed', 'log': s['lastOp']}
+    if userExist:
+        delUser(email, s)
+        if s['lastOp']['status'] != 'success':
+            return {'status': 'failure', 'reason': 'User deletion failed', 'log': s['lastOp']}
+    return {'status': 'success'}
