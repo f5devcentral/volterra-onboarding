@@ -163,7 +163,7 @@ def delUser(email, s):
     except requests.exceptions.RequestException as e:  
         return updateSO(s, 'delUser', 'error', e)
 
-def cliAdd(token, tenant, email, first_name, last_name, createNS, oRide, admin):
+def cliAdd(token, tenant, email, first_name, last_name, createNS, overwrite, admin):
     createdNS = None
     s = createVoltSession(token, tenant)
     c = createUserCache(s)
