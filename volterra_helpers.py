@@ -13,22 +13,32 @@ def updateSO(s, op, status, message):
     s['log'].append(action)
     return s
 
-def createUserCache(s, cacheTO=60):
-    url = s['urlBase'] + "/api/web/custom/namespaces/system/user_roles"
+def createCache(s, cacheTO=60):
+    urlUsers = s['urlBase'] + "/api/web/custom/namespaces/system/user_roles"
     try:
-        resp = s['session'].get(url)
+        resp = s['session'].get(urlUsers)
         resp.raise_for_status()
         users = json.loads(resp.text)['items']
     except requests.exceptions.RequestException as e: 
-        return updateSO(s, 'popUserCache', 'error', e)
+        return updateSO(s, 'createCache', 'error', e)
     except json.decoder.JSONDecodeError as e:
-        return updateSO(s, 'popUserCache', 'error', e)
+        return updateSO(s, 'createCache', 'error', e)
+    urlNSs = s['urlBase'] + "/api/web/namespaces"
+    try:
+        resp = s['session'].get(urlNSs)
+        resp.raise_for_status()
+        namespaces = json.loads(resp.text)['items']
+    except requests.exceptions.RequestException as e: 
+        return updateSO(s, 'createCache', 'error', e)
+    except json.decoder.JSONDecodeError as e:
+        return updateSO(s, 'createCache', 'error', e)
     expiry = datetime.datetime.now() + datetime.timedelta(seconds=cacheTO)
     cache = {
         'expiry': expiry.timestamp(),
-        'tenantUsers': users
+        'users': users,
+        'namespaces': namespaces,
     }
-    updateSO(s, 'createUserCache', 'success', "userCache populated")
+    updateSO(s, 'createCache', 'success', "Cache populated")
     return cache
 
 def createVoltSession(token, tenantName):
@@ -56,22 +66,19 @@ def findUserNS(email):
         userNS = email.split('@')[0].replace('.', '-').lower()
     return userNS
     
-def checkUserNS(email, s):
+def checkUserNS(email, s, c):
+    if c['expiry'] < datetime.datetime.now().timestamp():
+        createCache(s)
     userNS = findUserNS(email)
-    url = s['urlBase'] + "/api/web/namespaces/{0}".format(userNS)
-    try:
-        resp = s['session'].get(url)
-        if 200 <= resp.status_code <= 299:
-            return updateSO(s, 'checkUserNS', 'present', 'NS is present')
-        else:
-            return updateSO(s, 'checkUserNS', 'absent', 'NS is absent')
-    except requests.exceptions.RequestException as e:  
-        return updateSO(s, 'checkUserNS', 'error', e)
+    thisUserNS = next((ns for ns in c['namespaces'] if ns['name'] == userNS), None)
+    if thisUserNS:
+        return updateSO(s, 'checkUserNS', 'present', 'UserNS {0} is present'.format(thisUserNS))
+    return updateSO(s, 'checkUserNS', 'absent', 'UserNS {0} is absent'.format(thisUserNS))
 
 def checkUser(email, s, c):
     if c['expiry'] < datetime.datetime.now().timestamp():
-        createUserCache(s)
-    thisUser = next((user for user in c['tenantUsers'] if user['email'].lower() == email.lower()), None)
+        createCache(s)
+    thisUser = next((user for user in c['users'] if user['email'].lower() == email.lower()), None)
     if thisUser:
         return updateSO(s, 'checkUser', 'present', 'User {0} is present'.format(email))
     return updateSO(s, 'checkUser', 'absent', 'User {0} is absent'.format(email))
@@ -166,8 +173,7 @@ def delUser(email, s):
 def cliAdd(token, tenant, email, first_name, last_name, createNS, overwrite, admin):
     createdNS = None
     s = createVoltSession(token, tenant)
-    c = createUserCache(s)
-
+    c = createCache(s)
     #We need to know if the user exists
     userExist = False
     checkUser(email, s, c)                                                                      #Is the user present?
@@ -175,7 +181,7 @@ def cliAdd(token, tenant, email, first_name, last_name, createNS, overwrite, adm
         userExist = True
     if overwrite:                                                                               #Handle 'overwrite'
         if createNS:
-            checkUserNS(email,s) 
+            checkUserNS(email, s) 
             if s['log'][-1]['status'] == 'present':                                             #Is the NS present?
                 delUserNS(email, s)                                                             #Delete the NS (and everything inside)
             createUserNS(email, s)                                                              #Create the NS
@@ -194,7 +200,7 @@ def cliAdd(token, tenant, email, first_name, last_name, createNS, overwrite, adm
                 createUserNS(email, s)                                                          #Create the NS
                 createdNS = findUserNS(email)                                                   #TBD: more robust
         if userExist:                                                                           #User is present
-            return {'status': 'failure', 'reason': 'User already exists', 'log': s['log']}      #No oRide -- this is fatal
+            return {'status': 'failure', 'reason': 'User already exists', 'log': s['log']}      #No overwrite -- this is fatal
         else:
             createUserRoles(email, first_name, last_name, s, createdNS, False, admin)           #Create the user
             if s['log'][-1]['status'] == 'success':
@@ -208,4 +214,3 @@ def cliRemove(token, tenant, email):
     delUserNS(email, s)
     delUser(email, s)
     return {'status': 'success', 'log': s['log']}
-
