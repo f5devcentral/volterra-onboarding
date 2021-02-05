@@ -3,7 +3,7 @@ import json
 import logging
 
 from ms_graph import getGroupId, getGroupMembers, getUser
-from volterra_helpers import cliAdd, cliRemove
+from volterra_helpers import createVoltSession, cliAdd, cliRemove
 
 
 def readConfig(config_file: str) -> str:
@@ -25,15 +25,15 @@ def writeConfig(config_file: str, data: str) -> str:
     os.chmod(config_file, 0o600)
 
 
-def processUser(action: str, namespace_action: bool, overwrite: bool, tenant: str, token: str, user: dict, admin: bool) -> dict:
+def processUser(session: dict, action: str, namespace_action: bool, overwrite: bool, tenant: str, token: str, user: dict, admin: bool) -> dict:
     """Add or remove a user from Volterra Console"""
     if action == 'add':
-        result = cliAdd(token, tenant, user['userPrincipalName'],
+        result = cliAdd(session, user['userPrincipalName'],
                         user['givenName'], user['surname'], namespace_action, overwrite, admin)
         logging.debug(f'result:{result}')
         return result
     else:
-        result = cliRemove(token, tenant, user['userPrincipalName'])
+        result = cliRemove(session, user['userPrincipalName'])
         logging.debug(f'result:{result}')
         return result
 
@@ -44,6 +44,9 @@ def processRequest(action: str, authorization_token: str, name: str, namespace_a
         f'action:{action}, name:{name}, tenant:{tenant}, namespace_action:{namespace_action}')
 
     payload = []
+    # create session for volt api
+    session = createVoltSession(token, tenant)
+    
     # determine if we're processing a user or a group
     if "@" in name:
         logging.debug(f'{action} a user')
@@ -51,7 +54,7 @@ def processRequest(action: str, authorization_token: str, name: str, namespace_a
         user = getUser(authorization_token, name)
         logging.debug(f'user:{user}')
         # Process user
-        result = processUser(action, namespace_action,
+        result = processUser(session, action, namespace_action,
                              overwrite, tenant, token, user, admin)
         logging.debug(f'processUser:{result}')
         # build response payload
@@ -67,7 +70,7 @@ def processRequest(action: str, authorization_token: str, name: str, namespace_a
         logging.debug(f'users:{users}')
         # process each user
         for user in users:
-            result = processUser(action, namespace_action,
+            result = processUser(session, action, namespace_action,
                                  overwrite, tenant, token, user, admin)
             logging.debug(f'processUser:{result}')
             # build response payload
