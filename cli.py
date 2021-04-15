@@ -201,7 +201,8 @@ if __name__ == '__main__':
             config['client_id'], config['tenant_id'])
 
     # load possible tenant tokens
-    volterraTenants = config['volterra_tenants']
+    if config != {}:
+        volterraTenants = config['volterra_tenants']
 
     try:
         cli()
