@@ -6,7 +6,7 @@ import json
 import os
 import logging
 
-from msal_interactive_flow import retrieveAccessToken
+from msal_flow import retrieveAccessToken
 from pathlib import Path
 from helpers import processRequest, readConfig, writeConfig
 
@@ -194,11 +194,15 @@ if __name__ == '__main__':
         logging.basicConfig(level=config['log_level'])
     else:
         logging.basicConfig(level=logging.WARNING)
-    # Get authorization token
 
+    # Get authorization token
     if 'client_id' in config.keys() and 'tenant_id' in config.keys():
-        authorization_token = retrieveAccessToken(
-            config['client_id'], config['tenant_id'])
+        if 'secret' in config.keys():
+            authorization_token = retrieveAccessToken(
+                config['client_id'], config['tenant_id'], config['secret'])
+        else:
+            authorization_token = retrieveAccessToken(
+                config['client_id'], config['tenant_id'])
 
     # load possible tenant tokens
     if config != {}:
