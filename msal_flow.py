@@ -5,7 +5,7 @@ import msal
 import os
 from pathlib import Path
 
-logging.getLogger("msal").setLevel(logging.DEBUG)
+logging.getLogger("msal").setLevel(logging.INFO)
 
 
 def retrieveAccessToken(client_id, tenant_id, secret=None):
@@ -54,11 +54,13 @@ def retrieveAccessToken(client_id, tenant_id, secret=None):
     if not result:
         logging.info(
             "No suitable token exists in cache. Let's get a new one from AAD.")
-        logging.info(
-            "A local browser window will be open for you to sign in. CTRL+C to cancel.")
         if secret:
+            logging.info(
+                "The Application secret will be used to obtain a token.")
             result = app.acquire_token_for_client(scopes=scope)
         else:
+            logging.info(
+                "A local browser window will be open for you to sign in. CTRL+C to cancel.")
             result = app.acquire_token_interactive(scope)
 
     if "access_token" in result:
