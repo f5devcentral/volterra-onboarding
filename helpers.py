@@ -3,7 +3,13 @@ import json
 import logging
 
 from ms_graph import getGroupId, getGroupMembers, getUser
+from msal_flow import retrieveAccessToken
 from volterra_helpers import createVoltSession, cliAdd, cliRemove
+
+
+def getAccessToken(client_id: str, tenant_id: str, secret: str = None) -> str:
+    """Return an Azure AD OAuth token"""
+    return retrieveAccessToken(client_id, tenant_id, secret)
 
 
 def readConfig(config_file: str) -> str:
@@ -46,7 +52,7 @@ def processRequest(action: str, authorization_token: str, name: str, namespace_a
     payload = []
     # create session for volt api
     session = createVoltSession(token, tenant)
-    
+
     # determine if we're processing a user or a group
     if "@" in name:
         logging.debug(f'{action} a user')

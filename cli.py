@@ -6,9 +6,8 @@ import json
 import os
 import logging
 
-from msal_interactive_flow import retrieveAccessToken
 from pathlib import Path
-from helpers import processRequest, readConfig, writeConfig
+from helpers import getAccessToken, processRequest, readConfig, writeConfig
 
 
 @click.group()
@@ -30,7 +29,11 @@ def config():
 @click.option('--createns', default=True, type=bool, help='Create Namespace for user.')
 @click.option('--overwrite', default=False, type=bool, help='Overwrite existing Volterra API objects.')
 @click.option('--admin', default=False, type=bool, help='Make user Volterra tenant admin')
-def add(name, tenant, createns, overwrite, admin):
+@click.option('--aad-client-id', default=False, help='Azure Active Directory Application Client ID.')
+@click.option('--aad-client-secret', default=False, help='Azure Active Directory Application Client secret.')
+@click.option('--aad-tenant-id', default=False, help='Azure Active Directory Tenant ID.')
+@click.option('--volt-token', default=False, help='VoltConsole access token.')
+def add(name, tenant, createns, overwrite, admin, aad_client_id, aad_client_secret, aad_tenant_id, volt_token):
     """Adds user/group to the Volterra Console.
 
     NAME argument takes:
@@ -44,7 +47,30 @@ def add(name, tenant, createns, overwrite, admin):
     overwrite defaults to false.
     """
     try:
-        token = volterraTenants[tenant]
+        # Get the VoltConsole access token
+        if(volt_token):
+            token = volt_token
+        elif tenant in volterraTenants.keys():
+            token = volterraTenants[tenant]
+        else:
+            raise click.ClickException("No Volterra Tenant token found")
+
+        # Get the Azure AD Access Token
+        if(aad_client_id and aad_client_secret and aad_tenant_id):
+            # information passed via arguments
+            authorization_token = getAccessToken(
+                aad_client_id, aad_tenant_id, aad_client_secret)
+        elif 'client_id' in config.keys() and 'tenant_id' in config.keys():
+            # check if a secret is in the config file
+            if 'secret' in config.keys():
+                authorization_token = getAccessToken(
+                    config['client_id'], config['tenant_id'], config['secret'])
+            else:
+                authorization_token = getAccessToken(
+                    config['client_id'], config['tenant_id'])
+        else:
+            raise click.ClickException("No authorization token found")
+
     except KeyError as e:
         # err=True seems to do nothing
         click.echo('No API token found for tenant', err=True)
@@ -62,7 +88,11 @@ def add(name, tenant, createns, overwrite, admin):
 @click.argument('name')
 @click.option('--tenant', prompt='tenant', help='Volterra tenant.')
 @click.option('--removens', default=True, type=bool, help='Remove Namespace for user.')
-def remove(name, tenant, removens):
+@click.option('--aad-client-id', default=False, help='Azure Active Directory Application Client ID.')
+@click.option('--aad-client-secret', default=False, help='Azure Active Directory Application Client secret.')
+@click.option('--aad-tenant-id', default=False, help='Azure Active Directory Tenant ID.')
+@click.option('--volt-token', default=False, help='VoltConsole access token.')
+def remove(name, tenant, removens, aad_client_id, aad_client_secret, aad_tenant_id, volt_token):
     """Removes user/group to the Volterra Console.
 
     NAME argument takes:
@@ -74,7 +104,30 @@ def remove(name, tenant, removens):
     removens defaults to True.
     """
     try:
-        token = volterraTenants[tenant]
+        # Get the VoltConsole access token
+        if(volt_token):
+            token = volt_token
+        elif tenant in volterraTenants.keys():
+            token = volterraTenants[tenant]
+        else:
+            raise click.ClickException("No Volterra Tenant token found")
+
+        # Get the Azure AD Access Token
+        if(aad_client_id and aad_client_secret and aad_tenant_id):
+            # information passed via arguments
+            authorization_token = getAccessToken(
+                aad_client_id, aad_tenant_id, aad_client_secret)
+        elif 'client_id' in config.keys() and 'tenant_id' in config.keys():
+            # check if a secret is in the config file
+            if 'secret' in config.keys():
+                authorization_token = getAccessToken(
+                    config['client_id'], config['tenant_id'], config['secret'])
+            else:
+                authorization_token = getAccessToken(
+                    config['client_id'], config['tenant_id'])
+        else:
+            raise click.ClickException("No authorization token found")
+
     except KeyError as e:
         # err=True seems to do nothing
         click.echo('No API token found for tenant', err=True)
@@ -184,6 +237,7 @@ config.add_command(logLevel)
 
 if __name__ == '__main__':
     # load config data
+    # check if auth params passed into cli
     config_file = str(Path.home()) + '/.volterra/config.json'
     config = {}
     if os.path.exists(config_file):
@@ -194,11 +248,6 @@ if __name__ == '__main__':
         logging.basicConfig(level=config['log_level'])
     else:
         logging.basicConfig(level=logging.WARNING)
-    # Get authorization token
-
-    if 'client_id' in config.keys() and 'tenant_id' in config.keys():
-        authorization_token = retrieveAccessToken(
-            config['client_id'], config['tenant_id'])
 
     # load possible tenant tokens
     if config != {}:
