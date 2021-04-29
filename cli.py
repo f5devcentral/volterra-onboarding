@@ -9,6 +9,8 @@ import logging
 from pathlib import Path
 from helpers import getAccessToken, processRequest, readConfig, writeConfig
 
+IN_DOCKER = os.environ.get('IN_DOCKER', False)
+
 
 @click.group()
 def cli():
@@ -48,12 +50,24 @@ def add(name, tenant, createns, overwrite, admin, aad_client_id, aad_client_secr
     """
     try:
         # Get the VoltConsole access token
-        if(volt_token):
+        if volt_token:
+            # passed as option
             token = volt_token
         elif tenant in volterraTenants.keys():
+            # in config file
             token = volterraTenants[tenant]
+        elif 'volt-token' in os.environ:
+            # environment variable
+            token = os.getenv('volt-token')
         else:
             raise click.ClickException("No Volterra Tenant token found")
+
+        # check if we're in docker and aad attributes are env vars
+        if IN_DOCKER:
+            if 'aad-client-id' in os.environ and 'aad-client-secret' in os.environ and 'aad-tenant-id' in os.environ:
+                aad_client_id = os.getenv('aad-client-id')
+                aad_client_secret = os.getenv('aad-client-secret')
+                aad_tenant_id = os.getenv('aad-tenant-id')
 
         # Get the Azure AD Access Token
         if(aad_client_id and aad_client_secret and aad_tenant_id):
@@ -105,12 +119,24 @@ def remove(name, tenant, removens, aad_client_id, aad_client_secret, aad_tenant_
     """
     try:
         # Get the VoltConsole access token
-        if(volt_token):
+        if volt_token:
+            # passed as option
             token = volt_token
         elif tenant in volterraTenants.keys():
+            # in config file
             token = volterraTenants[tenant]
+        elif 'volt-token' in os.environ:
+            # environment variable
+            token = os.getenv('volt-token')
         else:
             raise click.ClickException("No Volterra Tenant token found")
+
+        # check if we're in docker and aad attributes are env vars
+        if IN_DOCKER:
+            if 'aad-client-id' in os.environ and 'aad-client-secret' in os.environ and 'aad-tenant-id' in os.environ:
+                aad_client_id = os.getenv('aad-client-id')
+                aad_client_secret = os.getenv('aad-client-secret')
+                aad_tenant_id = os.getenv('aad-tenant-id')
 
         # Get the Azure AD Access Token
         if(aad_client_id and aad_client_secret and aad_tenant_id):
@@ -252,6 +278,8 @@ if __name__ == '__main__':
     # load possible tenant tokens
     if config != {}:
         volterraTenants = config['volterra_tenants']
+    else:
+        volterraTenants = {}
 
     try:
         cli()
