@@ -9,6 +9,8 @@ import logging
 from pathlib import Path
 from helpers import getAccessToken, processRequest, readConfig, writeConfig
 
+IN_DOCKER = os.environ.get('IN_DOCKER', False)
+
 
 @click.group()
 def cli():
@@ -174,18 +176,21 @@ config.add_command(volterra)
 config.add_command(logLevel)
 
 if __name__ == '__main__':
-    # load config data
-    # check if auth params passed into cli
-    config_file = str(Path.home()) + '/.volterra/config.json'
-    config = {}
-    if os.path.exists(config_file):
-        config = json.load(open(config_file))
-
-    # Set log level
-    if 'log_level' in config.keys():
-        logging.basicConfig(level=config['log_level'])
+    # set logging level
+    if IN_DOCKER:
+        logging.basicConfig(level="DEBUG")
     else:
-        logging.basicConfig(level=logging.WARNING)
+        # load config data
+        config_file = str(Path.home()) + '/.volterra/config.json'
+        config = {}
+        if os.path.exists(config_file):
+            config = json.load(open(config_file))
+
+        # Set log level
+        if 'log_level' in config.keys():
+            logging.basicConfig(level=config['log_level'])
+        else:
+            logging.basicConfig(level=logging.WARNING)
 
     try:
         cli()

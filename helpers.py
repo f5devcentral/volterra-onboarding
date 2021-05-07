@@ -59,6 +59,7 @@ def processRequest(action: str, name: str, namespace_action: bool, overwrite: bo
 
     # Check if cli is interactive or in a container
     if IN_DOCKER:
+        logging.debug("cli running in docker")
         # Check if token is in environment variable
         secrets = {
             "volt-token": os.environ.get('VOLT_TOKEN', None),
@@ -69,9 +70,11 @@ def processRequest(action: str, name: str, namespace_action: bool, overwrite: bo
 
         # If we're in Volterra, unblindfold the secrets
         if isWingmanReady():
+            logging.debug("wingman is ready")
             for secret in secrets:
                 value = getWingmanSecret(secret)
                 if value is None:
+                    logging.error(f"No secret returned for {secret}")
                     click.ClickException(f"No value for {secret} found")
                 else:
                     secrets[secret] = value
