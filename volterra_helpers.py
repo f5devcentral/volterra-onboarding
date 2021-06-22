@@ -1,6 +1,8 @@
 import requests
 import json
 import datetime
+import logging
+from urllib3.util.retry import Retry
 
 
 def createVoltSession(token, tenantName):
@@ -245,15 +247,28 @@ def cliRemove(s, email):
 
 def isWingmanReady():
     try:
-        s = requests.Session()
-        a = requests.adapters.HTTPAdapter(max_retries=0)
-        s.mount('http://', a)
-        r = s.get("http://localhost:8070/status")
+        logging.debug("checking wingman status")
+        retries = 3
+        backoff_factor = 0.3
+        session = requests.Session()
+        retry = requests.packages.urllib3.util.retry(
+            total=retries,
+            read=retries,
+            connect=retries,
+            backoff_factor=backoff_factor,
+        )
+        adapter = requests.adapters.HTTPAdapter(max_retries=retries)
+        session.mount('http://', adapter)
+        session.mount('https://', adapter)
+        r = session.get("http://localhost:8070/status")
         if r.status_code == 200 and r.text == "READY":
+            logging.debug("wingman ready")
             return True
         else:
+            logging.debug("wingman not ready")
             return False
     except:
+        logging.debug("wingman status threw an exception")
         return False
 
 

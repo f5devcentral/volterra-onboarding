@@ -49,6 +49,7 @@ def processUser(session: dict, action: str, namespace_action: bool, overwrite: b
 
 def processRequest(action: str, name: str, namespace_action: bool, overwrite: bool, tenant: str, admin: bool) -> dict:
     """Process request to add or remove user(s) from Volterra Console"""
+    logging.debug(os.environ)
     logging.debug(
         f'action:{action}, name:{name}, tenant:{tenant}, namespace_action:{namespace_action}')
 
