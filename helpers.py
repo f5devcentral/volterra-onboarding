@@ -4,7 +4,10 @@ import logging
 
 from ms_graph import getGroupId, getGroupMembers, getUser
 from msal_flow import retrieveAccessToken
-from volterra_helpers import createVoltSession, cliAdd, cliRemove
+from volterra_helpers import createVoltSession, cliAdd, cliRemove, isWingmanReady, getWingmanSecret
+from pathlib import Path
+
+IN_DOCKER = os.environ.get('IN_DOCKER', False)
 
 
 def getAccessToken(client_id: str, tenant_id: str, secret: str = None) -> str:
@@ -44,10 +47,65 @@ def processUser(session: dict, action: str, namespace_action: bool, overwrite: b
         return result
 
 
-def processRequest(action: str, authorization_token: str, name: str, namespace_action: bool, overwrite: bool, tenant: str, token: str, admin: bool) -> dict:
+def processRequest(action: str, name: str, namespace_action: bool, overwrite: bool, tenant: str, admin: bool) -> dict:
     """Process request to add or remove user(s) from Volterra Console"""
+    logging.debug(os.environ)
     logging.debug(
         f'action:{action}, name:{name}, tenant:{tenant}, namespace_action:{namespace_action}')
+
+    # obtain Volterra and Azure AD access tokens
+    authorization_token = None
+    token = None
+    secrets = {}
+
+    # Check if cli is interactive or in a container
+    if IN_DOCKER:
+        logging.debug("cli running in docker")
+        # Check if token is in environment variable
+        secrets = {
+            "volt-token": os.environ.get('VOLT_TOKEN', None),
+            "aad-client-id": os.environ.get('AAD_CLIENT_ID', None),
+            "aad-client-secret": os.environ.get('AAD_CLIENT_SECRET', None),
+            "aad-tenant-id": os.environ.get('AAD_TENANT_ID', None)
+        }
+
+        # If we're in Volterra, unblindfold the secrets
+        if isWingmanReady():
+            logging.debug("wingman is ready")
+            for secret in secrets:
+                value = getWingmanSecret(secret)
+                if value is None:
+                    logging.error(f"No secret returned for {secret}")
+                    click.ClickException(f"No value for {secret} found")
+                else:
+                    secrets[secret] = value
+
+    # CLI interactive, find token in config file
+    else:
+        # load config data
+        # check if auth params passed into cli
+        config_file = str(Path.home()) + '/.volterra/config.json'
+        config = {}
+        if os.path.exists(config_file):
+            config = json.load(open(config_file))
+
+        if tenant in config['volterra_tenants'].keys():
+            secrets = {
+                "volt-token": config['volterra_tenants'][tenant],
+                "aad-client-id": config['client_id'],
+                "aad-client-secret": None,
+                "aad-tenant-id": config['tenant_id'],
+            }
+        else:
+            raise click.ClickException(
+                "No Volterra Tenant configuration found")
+
+    # get authorization token:
+    authorization_token = getAccessToken(
+        secrets['aad-client-id'], secrets['aad-tenant-id'], secrets['aad-client-secret'])
+
+    # setup volterra access token
+    token = secrets['volt-token']
 
     payload = []
     # create session for volt api

@@ -130,3 +130,6 @@ dmypy.json
 .pyre/
 config.json
 token_cache.json
+*_job.yaml
+docker_secret.yaml
+onboard_secrets.yaml

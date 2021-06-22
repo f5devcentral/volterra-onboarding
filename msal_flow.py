@@ -11,17 +11,15 @@ IN_DOCKER = os.environ.get('IN_DOCKER', False)
 
 def retrieveAccessToken(client_id, tenant_id, secret=None):
     """Authenticate against Azure AD"""
-    if IN_DOCKER:
-        token_file = './token_cache.json'
-    else:
-        token_file = str(Path.home()) + '/.volterra/token_cache.json'
+    token_file = str(Path.home()) + '/.volterra/token_cache.json'
     authority = f'https://login.microsoftonline.com/{tenant_id}'
 
     # setup token cache
-    tokenCache = msal.SerializableTokenCache()
-    if os.path.exists(token_file):
-        tokenCache.deserialize(
-            open(token_file, "r").read())
+    if not IN_DOCKER:
+        tokenCache = msal.SerializableTokenCache()
+        if os.path.exists(token_file):
+            tokenCache.deserialize(
+                open(token_file, "r").read())
 
     # The pattern to acquire a token looks like this.
     app = None
@@ -38,9 +36,13 @@ def retrieveAccessToken(client_id, tenant_id, secret=None):
         result = app.acquire_token_silent(scope, account=None)
     else:
         scope = ["User.ReadBasic.All"]
-        app = msal.PublicClientApplication(
-            client_id, authority=authority, token_cache=tokenCache
-        )
+        if not IN_DOCKER:
+            app = msal.PublicClientApplication(
+                client_id, authority=authority, token_cache=tokenCache
+            )
+        else:
+            app = msal.PublicClientApplication(
+                client_id, authority=authority)
         # Firstly, check the cache to see if this end user has signed in before
         accounts = app.get_accounts()
         if accounts:
@@ -68,9 +70,10 @@ def retrieveAccessToken(client_id, tenant_id, secret=None):
             result = app.acquire_token_interactive(scope)
 
     if "access_token" in result:
-        open(token_file, "w").write(
-            tokenCache.serialize())
-        os.chmod(token_file, 0o600)
+        if not IN_DOCKER:
+            open(token_file, "w").write(
+                tokenCache.serialize())
+            os.chmod(token_file, 0o600)
         return result['access_token']
     else:
         logging.debug(result.get("error"))
